@@ -222,7 +222,10 @@ opcodes = dict(
     GBITCOM = 0x18B,
     # Secure socket
     INITSECURESOCKET = 0x1BA,
-    RESPSECURESOCKET = 0x1BB
+    RESPSECURESOCKET = 0x1BB,
+    # Consistency Check 
+    COMMITSECRET = 0x40,
+    INPUTWITHCHECK = 0x41,
 )
 
 

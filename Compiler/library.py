@@ -2034,3 +2034,37 @@ def Norm(b, k, f, simplex_flag=False):
     signed_acc = sign * acc
 
     return part_reciprocal, signed_acc
+
+import pathlib
+class ConsistencyCheck:
+    """TODO: docstring."""
+    def __init__(self, overwrite_existing_input_commitments=True):
+        self.input_commitments_initialized = {}
+        self.overwrite_existing_input_commitments = overwrite_existing_input_commitments
+
+    def commit_secret(self, x):
+        """Commit to a secret value x."""
+        commitsecret(x.address, x.length)
+
+    def prepare_input_commitments(self, commitments: list[str], player: int):
+        """Write a list of commitments for the given player to the standard commitment file."""
+        dir_path = pathlib.Path("Player-Data")
+        if dir_path.is_dir():
+            # TODO: thread num?
+            file_path = dir_path / f"Input-Commitments-P{player}-0"
+
+            # the first time this is called for each player, overwrite previous input commitments
+            if player not in self.input_commitments_initialized:
+                self.input_commitments_initialized[player] = False
+            mode = (
+                "w+"
+                if self.overwrite_existing_input_commitments
+                and not self.input_commitments_initialized[player]
+                else "a+"
+            )
+            self.input_commitments_initialized[player] = True
+
+            with file_path.open(mode) as f:
+                f.write("\n".join(commitments))
+                f.write("\n")
+

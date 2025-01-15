@@ -2904,5 +2904,36 @@ class cisc:
     """
     code = base.opcodes['CISC']
 
+#####################
+# Consistency Check #
+#####################
+
+class inputwithcheck(personal_base):
+    """Private input from cint.
+
+    :param: vector size (int)
+    :param: player (int)
+    :param: destination (sint)
+    :param: source (cint)
+    :param: (repeat from vector size)...
+    """
+
+    __slots__ = []
+    code = base.opcodes["INPUTWITHCHECK"]
+    arg_format = tools.cycle(["int", "p", "sw", "c"])
+
+
+class commitsecret(base.Instruction):
+    """Compute commitment to secret value.
+
+    :param: address (int)
+    :param: size (int)
+    """
+
+    __slots__ = []
+    code = base.opcodes["COMMITSECRET"]
+    arg_format = ["int", "int"]
+
+
 # hack for circular dependency
 from Compiler import comparison
