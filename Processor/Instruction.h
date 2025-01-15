@@ -313,7 +313,10 @@ enum
     GSTOPPRIVATEOUTPUT = 0x1B9,
     // Commsec ops
     INITSECURESOCKET = 0x1BA,
-    RESPSECURESOCKET = 0x1BB
+    RESPSECURESOCKET = 0x1BB,
+    // Consistency check 
+    COMMITSECRET = 0x40,
+    INPUTWITHCHECK = 0x41,
 };
 
 

@@ -102,6 +102,10 @@ public:
   void send_personal(const vector<int>& args);
   void private_output(const vector<int>& args);
 
+  // Consistency Check 
+  void gen_commitment(int addr, int size, MemoryPart<T> &memory);
+  void input_with_check(const vector<int> &args);
+
   StackedVector<T>& get_S()
   {
     return S;
@@ -146,10 +150,12 @@ public:
   string private_input_filename;
   string public_input_filename;
   string binary_input_filename;
+  string commitment_input_filename;
 
   ifstream private_input;
   ifstream public_input;
   ifstream binary_input;
+  ifstream commitment_input;
 
   int sent, rounds;
 

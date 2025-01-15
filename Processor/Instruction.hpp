@@ -328,6 +328,10 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         num_var_args = get_int(s);
         get_vector(num_var_args, start, s);
         break;
+      case INPUTWITHCHECK:
+        num_var_args = get_int(s);
+        get_vector(num_var_args, start, s);
+        break;
 
       // read from file, input is opcode num_args, 
       //   start_file_posn (read), end_file_posn(write) var1, var2, ...
@@ -503,6 +507,10 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         n = get_int(s);
         get_ints(r, s, 1);
         get_vector(num_var_args, start, s);
+        break;
+      case COMMITSECRET:
+        r[0] = get_int(s);
+        r[1] = get_int(s);
         break;
       default:
         ostringstream os;
@@ -843,6 +851,11 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       offset = 2;
       skip = 4;
       break;
+  case INPUTWITHCHECK: // TODO: correct?
+      size_offset = -2;
+      offset = 2;
+      skip = 4;
+      break;
   case SENDPERSONAL:
       size_offset = -2;
       offset = 2;
@@ -927,6 +940,7 @@ bool BaseInstruction::is_direct_memory_access() const
   case STMSB:
   case LDMCB:
   case STMCB:
+  case COMMITSECRET: // TODO: correct?
     return true;
   default:
     return false;
@@ -1410,6 +1424,14 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         return;
       case CISC:
         Procp.protocol.cisc(Procp, *this);
+        return;
+      case COMMITSECRET:
+        printf("TODO: remove. case COMMITSECRET calling gen_commitment\n");
+        Proc.Procp.gen_commitment(r[0], r[1], Proc.machine.Mp.MS);
+        return;
+      case INPUTWITHCHECK:
+        printf("TODO: remove. case INPUTWITHCHECK calling input_with_check\n");
+        Proc.Procp.input_with_check(start);
         return;
       default:
         printf("Case of opcode=0x%x not implemented yet\n",opcode);

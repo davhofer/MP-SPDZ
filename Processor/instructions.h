@@ -384,6 +384,8 @@
     X(ACTIVE, throw not_implemented(),) \
     X(FIXINPUT, throw not_implemented(),) \
     X(CONCATS, throw not_implemented(),) \
+    X(COMMITSECRET, throw not_implemented(),) \
+    X(INPUTWITHCHECK, throw not_implemented(),) \
 
 #define ALL_INSTRUCTIONS ARITHMETIC_INSTRUCTIONS REGINT_INSTRUCTIONS \
     CLEAR_GF2N_INSTRUCTIONS REMAINING_INSTRUCTIONS

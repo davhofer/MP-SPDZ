@@ -109,6 +109,12 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
       input_prefix);
   binary_input.open(binary_input_filename);
 
+  string commitment_input_prefix = "Player-Data/Input-Commitments";
+  commitment_input_filename = get_parameterized_filename(P.my_num(), thread_num,
+      commitment_input_prefix);
+  commitment_input.open(commitment_input_filename);
+  std::cout << "\nTODO: remove. Opened commitment input at " << commitment_input_filename << "\n\n";
+
   secure_prng.ReSeed();
   shared_prng.SeedGlobally(P, false);
 
@@ -919,6 +925,17 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
       for (auto it = begin; it < end; it++)
         *it = input.finalize(args[i + 1]);
     }
+}
+
+// Consistency Check
+template<class T>
+void SubProcessor<T>::gen_commitment(int addr, int size, MemoryPart<T> &memory) {
+    std::cout << "\nTODO: remove. Executing Processor::gen_commitment with addr " << addr << ", size " << size << ", memory size " << memory.size() << "\n\n";
+}
+
+template<class T>
+void SubProcessor<T>::input_with_check(const vector<int> &args) {
+    std::cout << "\nTODO: remove. Executing Processor::input_with_check with #args " << args.size() << "\n\n";
 }
 
 /**
