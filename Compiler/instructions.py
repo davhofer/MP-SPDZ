@@ -2907,7 +2907,6 @@ class cisc:
 #####################
 # Consistency Check #
 #####################
-
 class inputwithcheck(personal_base):
     """Private input from cint.
 

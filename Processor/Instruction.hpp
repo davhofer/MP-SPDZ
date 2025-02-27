@@ -315,6 +315,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case RAWINPUT:
       case GRAWINPUT:
       case INPUTPERSONAL:
+      case INPUTWITHCHECK:
       case SENDPERSONAL:
       case PRIVATEOUTPUT:
       case TRUNC_PR:
@@ -328,11 +329,6 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         num_var_args = get_int(s);
         get_vector(num_var_args, start, s);
         break;
-      case INPUTWITHCHECK:
-        num_var_args = get_int(s);
-        get_vector(num_var_args, start, s);
-        break;
-
       // read from file, input is opcode num_args, 
       //   start_file_posn (read), end_file_posn(write) var1, var2, ...
       case READFILESHARE:

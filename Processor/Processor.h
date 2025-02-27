@@ -22,6 +22,26 @@
 #include "GC/ShareThread.h"
 #include "Protocols/SecureShuffle.h"
 #include "Tools/NamedStats.h"
+// #include "Processor/ConsistencyCheck.h"
+// #include "Processor/CommitmentScheme.h"
+// #include "Processor/ConsistencyCheck.h"
+#include "Processor/CommitmentScheme.h"
+#include "OT/NPartyTripleGenerator.h"
+#include "GC/TinierShare.h"
+#include "GC/TinierSecret.h"
+#include "GC/TinierSharePrep.h"
+
+template<class T, class CommitmentScheme>
+class ConsistencyCheck;
+
+
+
+// Set CommitmentScheme type
+// If not defined at compile-time, set default type KZG
+#ifndef COMMITMENT_SCHEME_TYPE
+#define COMMITMENT_SCHEME_TYPE KZGCommitmentScheme
+#endif
+
 
 class Program;
 
@@ -60,6 +80,7 @@ public:
   Player& P;
   Preprocessing<T>& DataF;
 
+
   typename T::Protocol protocol;
   typename T::Input input;
 
@@ -67,6 +88,9 @@ public:
   vector<typename BT::LivePrep*> personal_bit_preps;
 
   typename T::Protocol::Shuffler shuffler;
+
+    // ConsistencyCheck instance
+    ConsistencyCheck<T, COMMITMENT_SCHEME_TYPE> CC;
 
   SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
       Preprocessing<T>& DataF, Player& P);

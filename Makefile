@@ -27,7 +27,7 @@ COMMON = $(SHAREDLIB)
 TINIER =  Machines/Tinier.o $(OT)
 SPDZ = Machines/SPDZ.o $(TINIER)
 
-BLS = local/lib/libff.a ECDSA/P377Element.o
+BLS = local/lib/libff.a ECDSA/P377Element.o Processor/gfp.o
 
 LIB = libSPDZ.a
 SHAREDLIB = libSPDZ.so
@@ -409,6 +409,14 @@ libff: deps/libff
 endif
 
 
+# Consistency Check deps 
+# TODO: check if this works
+ckzg:
+	git submodule update --init deps/c-kzg
+	cd deps/c-kzg/ && make c
+	mkdir local/include/c-kzg 
+	cp deps/c-kzg/inc/blst* local/include/c-kzg 
+	cp deps/c-kzg/lib/libckzg.a deps/c-kzg/lib/libblst.a local/lib/
 
 mac-setup: mac-machine-setup
 	brew install openssl boost libsodium gmp yasm ntl cmake libomp

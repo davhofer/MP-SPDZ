@@ -86,10 +86,17 @@ endif
 LDLIBS = -lgmpxx -lgmp -lsodium $(MY_LDLIBS)
 LDLIBS += $(BREW_LDLIBS)
 LDLIBS +=  -Wl,-rpath -Wl,$(CURDIR)/local/lib -L$(CURDIR)/local/lib
+LDLIBS += -lff
 LDLIBS += -lboost_system -lssl -lcrypto
 LDLIBS += -lboost_filesystem -lboost_iostreams
+LDLIBS += -L./local/lib -lckzg -lblst 
+# does the above work?
 
 CFLAGS += -I./local/include
+
+CFLAGS += -I./deps
+CFLAGS += -I./deps/libff
+CFLAGS += -I./local/include/c-kzg -I./deps/c-kzg/src
 
 ifeq ($(USE_NTL),1)
 CFLAGS += -DUSE_NTL

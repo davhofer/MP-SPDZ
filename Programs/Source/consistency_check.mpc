@@ -1,0 +1,29 @@
+from Compiler.library import ConsistencyCheck
+
+CHECK_INPUTS = True
+
+CC = ConsistencyCheck()
+
+CC.prepare_input_commitments(["commitment string"], 0)
+
+M = [1, 2, 3, 4]
+v1 = sint.input_tensor_via(0, M, commitment=CHECK_INPUTS)
+
+CC.commit_secret(v1)
+
+print_ln('revealing committed input: %s', v1.reveal())
+
+# TODO: input with check somehow makes inputs all 0
+
+
+v_baseline = sint.input_tensor_via(0, M, commitment=False)
+CC.commit_secret(v_baseline)
+print_ln('revealing baseline input: %s', v_baseline.reveal())
+
+# TODO: doesn't work for sfix/float yet
+# M2 = [1.4, 2.5, 1.1]
+
+
+# also, consider batching
+# one call to inputpersonal can contain multiple individual instructions, each with their own commitment
+

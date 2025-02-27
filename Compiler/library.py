@@ -2048,6 +2048,10 @@ class ConsistencyCheck:
 
     def prepare_input_commitments(self, commitments: list[str], player: int):
         """Write a list of commitments for the given player to the standard commitment file."""
+        print("calling prepare_input_commitments")
+        print("commitments:", commitments)
+        print("player:", player)
+
         dir_path = pathlib.Path("Player-Data")
         if dir_path.is_dir():
             # TODO: thread num?
@@ -2055,6 +2059,7 @@ class ConsistencyCheck:
 
             # the first time this is called for each player, overwrite previous input commitments
             if player not in self.input_commitments_initialized:
+                print("player not initialized..")
                 self.input_commitments_initialized[player] = False
             mode = (
                 "w+"
@@ -2062,6 +2067,7 @@ class ConsistencyCheck:
                 and not self.input_commitments_initialized[player]
                 else "a+"
             )
+            print("write mode:", mode)
             self.input_commitments_initialized[player] = True
 
             with file_path.open(mode) as f:

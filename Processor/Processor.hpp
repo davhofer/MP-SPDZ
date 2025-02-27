@@ -4,7 +4,6 @@
 #include "Processor/Processor.h"
 #include "Processor/Program.h"
 #include "GC/square64.h"
-#include "SpecificPrivateOutput.h"
 #include "Conv2dTuple.h"
 
 #include "Processor/ProcessorBase.hpp"
@@ -14,6 +13,11 @@
 
 #include <sodium.h>
 #include <string>
+
+#include "Math/bigint.h"
+
+#include "Processor/ConsistencyCheck.h"
+
 
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
@@ -26,7 +30,7 @@ template <class T>
 SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
     Preprocessing<T>& DataF, Player& P, ArithmeticProcessor* Proc) :
     Proc(Proc), MC(MC), P(P), DataF(DataF), protocol(P), input(*this, MC),
-    bit_prep(bit_usage), shuffler(*this)
+    bit_prep(bit_usage), shuffler(*this), CC(this, &this->P)
 {
   DataF.set_proc(this);
   protocol.init(DataF, MC);
@@ -36,6 +40,7 @@ SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
   personal_bit_preps.resize(P.num_players());
   for (int i = 0; i < P.num_players(); i++)
     personal_bit_preps[i] = new typename BT::LivePrep(bit_usage, i);
+  CC.setup();
 }
 
 template<class T>
@@ -112,6 +117,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   string commitment_input_prefix = "Player-Data/Input-Commitments";
   commitment_input_filename = get_parameterized_filename(P.my_num(), thread_num,
       commitment_input_prefix);
+    // TODO: close file?
   commitment_input.open(commitment_input_filename);
   std::cout << "\nTODO: remove. Opened commitment input at " << commitment_input_filename << "\n\n";
 
@@ -930,12 +936,106 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
 // Consistency Check
 template<class T>
 void SubProcessor<T>::gen_commitment(int addr, int size, MemoryPart<T> &memory) {
-    std::cout << "\nTODO: remove. Executing Processor::gen_commitment with addr " << addr << ", size " << size << ", memory size " << memory.size() << "\n\n";
+    std::cout << "\nTODO: remove. Executing SubProcessor::gen_commitment with addr " << addr << ", size " << size << ", memory size " << memory.size() << "\n\n";
+
+    // test_gfp_fr_conversion();
+    // ConsistencyCheck<T, KZGCommitmentScheme> CC(this, &this->P);
+    // CC.setup();
+
+    // TODO: should we pass a pointer into memory.data() instead?
+    std::vector<T> shares(size);
+    for(int i=0;i<size;i++) shares[i] = memory[addr + i];
+
+    CC.commit_secret(shares);
+
+    std::cout << "SubProcessor::gen_commitment finished.\n";
+
+
+    // std::cout << "TESTING BYTE CONVERSIONS CKZG: \n";
+    // test_ckzg_byte_conversion();
+
 }
 
 template<class T>
 void SubProcessor<T>::input_with_check(const vector<int> &args) {
     std::cout << "\nTODO: remove. Executing Processor::input_with_check with #args " << args.size() << "\n\n";
+
+    // number of batched instructions
+    size_t n = args.size()/4;
+    std::cout << "Checking " << n << " input commitments...\n";
+    std::vector<int> prover_nums(n), input_sizes(n), share_addresses(n), clear_addresses(n);
+    
+  input.reset_all(P);
+  // loop over each individual input_with_check call, adding inputs from individual parties to input protocol
+  for (size_t i = 0; i < args.size(); i += 4)
+    if (args[i + 1] == P.my_num())
+      {
+        auto begin = C.begin() + args[i + 3];
+        auto end = begin + args[i];
+        assert(end <= C.end());
+        for (auto it = begin; it < end; it++)
+          input.add_mine(*it);
+      }
+    else
+      for (int j = 0; j < args[i]; j++)
+        input.add_other(args[i + 1]);
+  input.exchange(); // exchange input values
+  // loop over each individual input_with_check call, finalizing the inputs received from other parties
+  for (size_t i = 0; i < args.size(); i += 4)
+    {
+      auto begin = S.begin() + args[i + 2];
+      auto end = begin + args[i];
+      assert(end <= S.end());
+      for (auto it = begin; it < end; it++) {
+        *it = input.finalize(args[i + 1]);
+      }
+
+      input_sizes[i/4] = args[i];
+      prover_nums[i/4] = args[i + 1];
+      share_addresses[i/4] = args[i+2];
+      clear_addresses[i/4] = args[i+3];
+      // custom input_with_check code
+        //
+        //
+        // TODO: can do batch verification here, because we receive a vector at once!
+        // TODO: in loop, simply assemble args for CC.check_batch
+      /*
+       
+      vector<T> shared_input(begin, end);
+      vector<typename T::clear> clear_input;
+
+      std::cout << "New input, checking commitment...\n";
+      if (args[i + 1] == P.my_num()) {
+        std::cout << "I am the prover!\n";
+        auto cbegin = C.begin() + args[i + 3];
+        auto cend = cbegin + args[i];
+        assert(cend <= C.end());
+        std::cout << "secret input values:\n";
+        for (auto it = cbegin; it < cend; it++) {
+          std::cout << (*it) << std::endl;
+        }
+        // run CC.check with the clear_input
+        clear_input = vector<typename T::clear>(cbegin, cend);
+      } else {
+
+        std::cout << "I am verifier\n";
+        // runn CC.check with dummy clear_input vector
+        clear_input = vector<typename T::clear>(shared_input.size());
+      }
+
+      bool result = CC.check(args[i + 1], shared_input, clear_input);
+      // how to communicate result back to python?
+      std::cout << "\nOutput of CC.check: " << result << std::endl;
+
+      */
+
+    }
+
+    // TODO: do batch verification/CC.check_batch here
+    // args: prover nums, input lengths, Secret shares address, clear input address
+    std::cout << "\ninitiating CC.check_batch...\n";
+    bool result = CC.check_batch(prover_nums, input_sizes, share_addresses, clear_addresses);
+    std::cout << "\n * * * * * * * * * * * *\nCC.check result: " << result << "\n * * * * * * * * * * * *\n" << std::endl;
 }
 
 /**
@@ -946,7 +1046,7 @@ void SubProcessor<T>::input_with_check(const vector<int> &args) {
  *      a[1] = the player to which to reveal the output
  *      a[2] = the memory address of the input vector (sint) (i.e. the value to reveal)
  *      a[3] = the memory address of the output vector (cint) (i.e. the register to store the revealed value)
- * // TODO: When would there be multiple sets of arguments? (for ... i < args.size(); i += 4 ... )
+ *  
  */
 template<class T>
 void SubProcessor<T>::private_output(const vector<int>& args)

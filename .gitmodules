@@ -13,3 +13,6 @@
 [submodule "deps/SimplestOT_C"]
 	path = deps/SimplestOT_C
 	url = https://github.com/mkskeller/SimplestOT_C
+[submodule "deps/c-kzg"]
+	path = deps/c-kzg
+	url = https://github.com/ethereum/c-kzg-4844.git

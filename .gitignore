@@ -133,3 +133,8 @@ _build/
 # temp doc files
 doc/readme.md
 doc/xml
+
+# Personal dev #
+################
+mpspdz_env/
+deps/libff/

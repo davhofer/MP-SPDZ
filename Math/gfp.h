@@ -378,4 +378,6 @@ void to_signed_bigint(bigint& ans, const T& x)
         ans -= T::pr();
 }
 
+#include "Math/gfp.hpp"
+
 #endif

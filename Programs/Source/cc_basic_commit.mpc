@@ -1,0 +1,11 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+M = [1, 2, 3, 4]
+v = sint.input_tensor_via(0, M, commitment=False)
+
+CC.commit_secret(v)
+
+print_ln('revealing committed input: %s', v.reveal())
+
