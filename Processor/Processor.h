@@ -5,6 +5,9 @@
 /* This is a representation of a processing element
  */
 
+/*
+// recent approach:
+#include "Processor/ConsistencyCheck.h"
 #include "Math/Integer.h"
 #include "Tools/Exceptions.h"
 #include "Networking/Player.h"
@@ -24,22 +27,112 @@
 #include "Tools/NamedStats.h"
 // #include "Processor/ConsistencyCheck.h"
 // #include "Processor/CommitmentScheme.h"
-// #include "Processor/ConsistencyCheck.h"
+
 #include "Processor/CommitmentScheme.h"
+*/ 
+
+
+// previous approach:
+
+#include "Math/Integer.h"
+#include "Tools/Exceptions.h"
+#include "Networking/Player.h"
+#include "Data_Files.h"
+#include "Input.h"
+#include "PrivateOutput.h"
+#include "ExternalClients.h"
+#include "Binary_File_IO.h"
+#include "Instruction.h"
+#include "ProcessorBase.h"
+#include "OnlineOptions.h"
+#include "Tools/SwitchableOutput.h"
+#include "Tools/CheckVector.h"
+#include "GC/Processor.h"
+#include "GC/ShareThread.h"
+#include "Protocols/SecureShuffle.h"
+#include "Tools/NamedStats.h"
+
+#include "Processor/CommitmentScheme.h"
+
+// #include "Protocols/ReplicatedInput.h"
+
 #include "OT/NPartyTripleGenerator.h"
 #include "GC/TinierShare.h"
 #include "GC/TinierSecret.h"
 #include "GC/TinierSharePrep.h"
 
+#include <memory> 
+
+// #include "Protocols/ShamirShare.h"
+// #include "Processor/SpecificPrivateOutput.h"
+// #include "Processor/ConsistencyCheck.h"
 template<class T, class CommitmentScheme>
 class ConsistencyCheck;
 
 
 
+
+//////////////////////////////////////////////
+
+
+
+/*
+#include "OT/NPartyTripleGenerator.h"
+#include "GC/TinierShare.h"
+#include "GC/TinierSecret.h"
+#include "GC/TinierSharePrep.h"
+#include "Protocols/ShamirMC.h"
+#include "GC/CcdSecret.h"
+#include "GC/SemiSecret.h"
+#include "GC/SemiPrep.h"
+*/
+
+
+/////////////////////
+/*
+#include "GC/TinierSecret.h"
+#include "GC/TinyMC.h"
+#include "GC/VectorInput.h"
+
+#include "Protocols/Share.hpp"
+#include "Protocols/MAC_Check.hpp"
+#include "GC/Secret.hpp"
+#include "GC/TinierSharePrep.hpp"
+
+#include "ot-pe-party.hpp"
+*/
+/////////////////////
+
+
+
+/*
+#include "GC/MaliciousCcdSecret.h"
+#include "GC/MaliciousCcdShare.h"
+#include "Protocols/MaliciousRepPrep.h"
+#include "GC/MaliciousCcdSecret.h"
+#include "Protocols/MaliciousRepPrep.h"
+*/
+
+/*
+#include "Tools/Bundle.h"
+#include "Protocols/Shamir.h"
+#include "Protocols/ShamirMC.h"
+#include "Machines/ShamirMachine.h"
+#include "GC/AtlasShare.h"
+#include "Protocols/Atlas.h"
+*/
+
+/*
+template<class T, class CommitmentScheme>
+class ConsistencyCheck;
+*/
+
+
+
 // Set CommitmentScheme type
 // If not defined at compile-time, set default type KZG
-#ifndef COMMITMENT_SCHEME_TYPE
-#define COMMITMENT_SCHEME_TYPE KZGCommitmentScheme
+#ifndef COMMITTYPE
+#define COMMITTYPE KZGCommitmentScheme
 #endif
 
 
@@ -89,9 +182,6 @@ public:
 
   typename T::Protocol::Shuffler shuffler;
 
-    // ConsistencyCheck instance
-    ConsistencyCheck<T, COMMITMENT_SCHEME_TYPE> CC;
-
   SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
       Preprocessing<T>& DataF, Player& P);
   SubProcessor(typename T::MAC_Check& MC, Preprocessing<T>& DataF, Player& P,
@@ -128,7 +218,8 @@ public:
 
   // Consistency Check 
   void gen_commitment(int addr, int size, MemoryPart<T> &memory);
-  void input_with_check(const vector<int> &args);
+  // TODO: remove void input_with_check(const vector<int> &args);
+  void consistencycheck(const vector<int>& args, MemoryPart<T> &memory);
 
   StackedVector<T>& get_S()
   {
@@ -155,6 +246,11 @@ public:
   void push_stack();
   void push_args(const vector<int>& args);
   void pop_stack(const vector<int>& results);
+
+private:
+    // ConsistencyCheck instance
+    std::unique_ptr<ConsistencyCheck<T, COMMITTYPE>> CC;
+
 };
 
 class ArithmeticProcessor : public ProcessorBase

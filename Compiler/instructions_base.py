@@ -225,7 +225,7 @@ opcodes = dict(
     RESPSECURESOCKET = 0x1BB,
     # Consistency Check 
     COMMITSECRET = 0x40,
-    INPUTWITHCHECK = 0x41,
+    CONSISTENCYCHECK = 0x41,
 )
 
 

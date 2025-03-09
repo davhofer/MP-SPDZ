@@ -2,10 +2,37 @@ from Compiler.library import ConsistencyCheck
 
 CC = ConsistencyCheck()
 
-M = [1, 2, 3, 4]
-v = sint.input_tensor_via(0, M, commitment=False)
+# M = [1, 2, 3, 4]
+# v = sint.input_tensor_via(0, M, commitment=False)
 
-CC.commit_secret(v)
+inputs = [
+    [1, 2],
+    [1, 2, 3],
+    [1, 2, 3, 4],
+    [42, 4924, 342, 11, 2420, 42, 24820, 24],
+    [i+1 for i in range(1000)]
+]
 
-print_ln('revealing committed input: %s', v.reveal())
+vs = []
+
+for inp in inputs:
+    v = sint.input_tensor_via(0, inp, commitment=False)
+    vs.append(v)
+
+for v in vs:
+    CC.commit_secret(v)
+
+ped_commitments = [
+    "9780e853f8ce7eda772c6691d25e220ca1d2ab0db51a7824b700620f7ac94c06639e91c98bb6abd78128f0ec845df8ef",
+    "b8f1a9edf68006f913b5377a0f37bed80efadc4d6bf9f1523e83b2311e14219c6aa0b8aaee79e47a9977e880bad37a8e",
+    "87c81f48e97e1b31e264e68e1183f25b37a884aef6324b8632983baae42e5a0b231a01a2df0fa0ee55155e81de91350d",
+    "acd23f58de60a4ac130ff405e55154fbb7c4caecfba0fae77546d2717cb423c5e088b925fa05f4694f008dc8799d54aa",
+    "a55e0a20f79598ba7ea98c0c6ef31378f2aca9989b02ad06cc93a52c741909e9fcec5a13107d692cf2dbe4065b0b7ad5",
+]
+
+# v = sint.input_tensor_from(0, (4,))
+
+# CC.commit_secret(v)
+
+# print_ln('revealing committed input: %s', v.reveal())
 

@@ -71,7 +71,7 @@ from . import comparison, floatingpoint
 import math
 from . import util
 from . import instructions
-from .util import is_zero, is_one
+from .util import is_zero, is_one, prepare_input_commitment
 import operator
 from functools import reduce
 import re
@@ -611,7 +611,7 @@ class _secret_structure(_structure):
 
     @classmethod
     def input_tensor_via(cls, player, content=None, shape=None, binary=True,
-                         one_hot=False, skip_input=False, n_bytes=None, commitment=False):
+                         one_hot=False, skip_input=False, n_bytes=None, commitment=None):
         """
         Input tensor-like data via a player. This overwrites the input
         file for the relevant player. The following returns an
@@ -632,6 +632,9 @@ class _secret_structure(_structure):
         :param one_hot: one-hot encoding (bool)
 
         """
+        # require string input for ConsistencyCheck
+        if commitment is not None:
+            binary = False
         if program.curr_tape != program.tapes[0]:
             raise CompilerError('only available in main thread')
         if content is not None:
@@ -694,7 +697,14 @@ class _secret_structure(_structure):
                 raise CompilerError('content contradicts shape')
         if not skip_input:
             res = cls.Tensor(shape)
-            res.input_from(player, binary=binary, n_bytes=n_bytes, commitment=commitment)
+            res.input_from(player, binary=binary, n_bytes=n_bytes)
+            if commitment is not None:
+                prepare_input_commitment(commitment, player)
+                if isinstance(res, SubMultiArray):
+                    size = res.total_size()
+                else:
+                    size = res.length
+                consistencycheck(player, res.address, size)
             return res
 
 class _vec(Tape._no_truth):
@@ -2518,16 +2528,16 @@ class sint(_secret, _int):
         return res
 
     @vectorized_classmethod
-    def get_input_from(cls, player, binary=False, n_bytes=None, commitment=False):
+    def get_input_from(cls, player, binary=False, n_bytes=None):
         """ Secret input.
 
         :param player: public (regint/cint/int)
         :param size: vector size (int, default 1)
         """
         if binary:
-            return cls(personal.read_int(player, n_bytes=n_bytes), commitment=commitment)
+            return cls(personal.read_int(player, n_bytes=n_bytes))
         else:
-            res = cls(commitment=commitment)
+            res = cls()
             inputmixed('int', res, player)
         return res
 
@@ -2748,15 +2758,12 @@ class sint(_secret, _int):
         return res
 
     @vectorize_init
-    def __init__(self, val=None, size=None, commitment=False):
+    def __init__(self, val=None, size=None):
         from .GC.types import sbitvec
         if isinstance(val, personal):
             size = val._v.size
             super(sint, self).__init__('s', size=size)
-            if commitment:
-                inputwithcheck(size, val.player, self, self.clear_type.conv(val._v))
-            else:
-                inputpersonal(size, val.player, self, self.clear_type.conv(val._v))
+            inputpersonal(size, val.player, self, self.clear_type.conv(val._v))
         elif isinstance(val, _fix):
             super(sint, self).__init__('s', size=val.v.size)
             self.load_other(val.v.round(val.k, val.f,
@@ -4644,7 +4651,7 @@ class _fix(_single):
         return res
 
     @vectorize_init
-    def __init__(self, _v=None, k=None, f=None, size=None, initialize=True, commitment=False):
+    def __init__(self, _v=None, k=None, f=None, size=None, initialize=True):
         if k is None:
             k = self.k
         else:
@@ -4687,7 +4694,7 @@ class _fix(_single):
         elif isinstance(_v, (list, tuple)):
             self.v = self.int_type(list(self.conv(x).v for x in _v))
         elif isinstance(_v, personal):
-            self.v = self.int_type(personal(_v.player, adjust(_v._v)), commitment=commitment)
+            self.v = self.int_type(personal(_v.player, adjust(_v._v)))
         else:
             raise CompilerError('cannot convert %s to sfix' % _v)
         if not isinstance(self.v, self.int_type):
@@ -4855,7 +4862,7 @@ class sfix(_fix):
         return sfix_prec
 
     @vectorized_classmethod
-    def get_input_from(cls, player, binary=False, n_bytes=None, commitment=False):
+    def get_input_from(cls, player, binary=False, n_bytes=None):
         """ Secret fixed-point input.
 
         :param player: public (regint/cint/int)
@@ -4863,9 +4870,9 @@ class sfix(_fix):
         """
         cls.int_type.require_bit_length(cls.k)
         if binary:
-            return cls(personal.read_fix(player, cls.f, cls.k, int(binary)), commitment=commitment)
+            return cls(personal.read_fix(player, cls.f, cls.k, int(binary)))
         else:
-            v = cls.int_type(commitment=commitment)
+            v = cls.int_type()
             inputmixed('fix', v, cls.f, player)
             return cls._new(v)
 

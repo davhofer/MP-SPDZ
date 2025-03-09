@@ -26,6 +26,7 @@ VM = $(MINI_OT) $(SHAREDLIB)
 COMMON = $(SHAREDLIB)
 TINIER =  Machines/Tinier.o $(OT)
 SPDZ = Machines/SPDZ.o $(TINIER)
+SPDZNOTINIER = Machines/SPDZ.o $(OT)
 
 BLS = local/lib/libff.a ECDSA/P377Element.o Processor/gfp.o
 
@@ -220,7 +221,7 @@ secure.x: Utils/secure.o
 Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-%.x: Utils/%.o $(COMMON)
+%.x: Utils/%.o $(COMMON) 
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 %.x: Machines/%.o $(MINI_OT) $(SHAREDLIB)
@@ -267,6 +268,7 @@ static/chaigear-party.x: $(FHEOBJS)
 static/lowgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/LowGearKeyGen.o
 static/highgear-party.x: $(FHEOBJS) Protocols/CowGearOptions.o Protocols/HighGearKeyGen.o
 mascot-party.x: $(SPDZ)
+mascot-party-notinier.x: $(SPDZNOTINIER)
 static/mascot-party.x: $(SPDZ)
 Player-Online.x: $(SPDZ)
 mama-party.x: $(TINIER)

@@ -315,13 +315,13 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case RAWINPUT:
       case GRAWINPUT:
       case INPUTPERSONAL:
-      case INPUTWITHCHECK:
       case SENDPERSONAL:
       case PRIVATEOUTPUT:
       case TRUNC_PR:
       case RUN_TAPE:
       case CONV2DS:
       case MATMULS:
+      case CONSISTENCYCHECK:
         num_var_args = get_int(s);
         get_vector(num_var_args, start, s);
         break;
@@ -847,10 +847,10 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       offset = 2;
       skip = 4;
       break;
-  case INPUTWITHCHECK: // TODO: correct?
+  case CONSISTENCYCHECK:
       size_offset = -2;
       offset = 2;
-      skip = 4;
+      skip = 3;
       break;
   case SENDPERSONAL:
       size_offset = -2;
@@ -937,6 +937,7 @@ bool BaseInstruction::is_direct_memory_access() const
   case LDMCB:
   case STMCB:
   case COMMITSECRET: // TODO: correct?
+  case CONSISTENCYCHECK: // TODO: correct?
     return true;
   default:
     return false;
@@ -1121,6 +1122,9 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         return;
       case INPUTPERSONAL:
         Proc.Procp.input_personal(start);
+        return;
+      case CONSISTENCYCHECK:
+        Proc.Procp.consistencycheck(start, Proc.machine.Mp.MS);
         return;
       case SENDPERSONAL:
         Proc.Procp.send_personal(start);
@@ -1424,10 +1428,6 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case COMMITSECRET:
         printf("TODO: remove. case COMMITSECRET calling gen_commitment\n");
         Proc.Procp.gen_commitment(r[0], r[1], Proc.machine.Mp.MS);
-        return;
-      case INPUTWITHCHECK:
-        printf("TODO: remove. case INPUTWITHCHECK calling input_with_check\n");
-        Proc.Procp.input_with_check(start);
         return;
       default:
         printf("Case of opcode=0x%x not implemented yet\n",opcode);

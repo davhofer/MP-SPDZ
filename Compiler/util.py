@@ -1,6 +1,7 @@
 import math
 import operator
 from functools import reduce
+import pathlib
 
 def format_trace(trace, prefix='  '):
     if trace is None:
@@ -301,3 +302,9 @@ class defaultdict_by_id(dict_by_id):
         if key not in self:
             self[key] = self.default()
         return dict_by_id.__getitem__(self, key)
+
+def prepare_input_commitment(commitment: str, player: int):
+    file_path = pathlib.Path(f"Player-Data/Input-Commitments-P{player}-0")
+    with file_path.open("a+") as f:
+        f.write(commitment + "\n")
+

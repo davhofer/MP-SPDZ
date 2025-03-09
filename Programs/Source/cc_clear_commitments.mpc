@@ -1,0 +1,5 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+

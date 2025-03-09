@@ -1,0 +1,49 @@
+from Compiler.library import ConsistencyCheck
+from Compiler import ml
+
+CC = ConsistencyCheck()
+
+
+# party 1 provides the training data
+X = sint.input_tensor_via(1, [[1, 2, 3], [11, 12, 13]])
+y = sint.input_tensor_via(1, [0, 1])
+
+# parties compute input commitments in MPC
+CC.commit(X)
+CC.commit(y)
+
+# => all parties obtain commitments C_X and C_y
+
+# parties train model in MPC
+log = ml.SGDLogistic(100)
+log.fit(X, y)
+
+# party 0 uses model to make prediction
+x = sint.input_tensor_via(0, [[3, 4, 5]])
+
+y_pred = log.predict(x)
+
+print_ln(y_pred.reveal()[0])
+
+
+###################################################
+# Second MPC computation at a later point
+###################################################
+
+# some placeholder MPC audit functionality
+def audit_model_prediction(model, X_train, y_train, x_test, y_pred):
+    # ...
+    pass
+
+C_X = "85a73a28c59e7b2c7fc09ad4dc09e0389372d335eeb7923992be62c5fc9ab28868bb2b892fb246ccb208acbde181e3c4"
+C_y = "ad3eb50121139aa34db1d545093ac9374ab7bca2c0f3bf28e27c8dcd8fc7cb42d25926fc0c97b336e9f0fb35e5a04c81"
+
+# check the input w.r.t the commitments
+X = sint.input_tensor_via(1, [[1, 2, 3], [11, 12, 13]], commitment=C_X)
+y = sint.input_tensor_via(1, [0, 1], commitment=C_y)
+
+# if commitment verification fails, abort
+
+audit_model_prediction(log, X, y, x, y_pred)
+
+

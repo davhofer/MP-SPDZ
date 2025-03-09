@@ -5,7 +5,7 @@ in particularly providing flow control and output.
 
 from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec, SubMultiArray, _secret
 from Compiler.instructions import *
-from Compiler.util import tuplify,untuplify,is_zero
+from Compiler.util import tuplify,untuplify,is_zero,prepare_input_commitment
 from Compiler.allocator import RegintOptimizer, AllocPool
 from Compiler.program import Tape
 from Compiler import instructions,instructions_base,comparison,util,types
@@ -14,7 +14,9 @@ import random
 import collections
 import operator
 import copy
+import os
 from functools import reduce
+import pathlib
 
 def get_program():
     return instructions.program
@@ -2035,42 +2037,42 @@ def Norm(b, k, f, simplex_flag=False):
 
     return part_reciprocal, signed_acc
 
-import pathlib
 class ConsistencyCheck:
-    """TODO: docstring."""
-    def __init__(self, overwrite_existing_input_commitments=True):
-        self.input_commitments_initialized = {}
-        self.overwrite_existing_input_commitments = overwrite_existing_input_commitments
+    """TODO: docstring.
 
-    def commit_secret(self, x):
+    TODO: on init, clear commitment inputs 
+
+    when we call input_tensor_via, pass the commitment, which will be added.
+    when we call check_batch, pass a list of commitments
+
+    """
+    def __init__(self):
+        self.data_dir = pathlib.Path("Player-Data")
+        for f in self.data_dir.iterdir():
+            if f.name.startswith("Input-Commitments-P"):
+                f.unlink()
+
+    # TODO: this is for sint, what about cint?
+    def commit(self, x):
         """Commit to a secret value x."""
-        commitsecret(x.address, x.length)
+        if isinstance(x, SubMultiArray):
+            size = x.total_size()
+        else:
+            size = x.length
+        commitsecret(x.address, size)
 
-    def prepare_input_commitments(self, commitments: list[str], player: int):
-        """Write a list of commitments for the given player to the standard commitment file."""
-        print("calling prepare_input_commitments")
-        print("commitments:", commitments)
-        print("player:", player)
+    def check_batch(self, input_parties: list[int], inputs: list[sint.Tensor], commitments: list[str]):
+        args = []
+        for i in range(len(inputs)):
+            prepare_input_commitment(commitments[i], input_parties[i])
+            args.append(input_parties[i])
+            args.append(inputs[i].address)
+            if isinstance(inputs[i], SubMultiArray):
+                args.append(inputs[i].total_size())
+            else:
+                args.append(inputs[i].length)
 
-        dir_path = pathlib.Path("Player-Data")
-        if dir_path.is_dir():
-            # TODO: thread num?
-            file_path = dir_path / f"Input-Commitments-P{player}-0"
+        consistencycheck(*args)
 
-            # the first time this is called for each player, overwrite previous input commitments
-            if player not in self.input_commitments_initialized:
-                print("player not initialized..")
-                self.input_commitments_initialized[player] = False
-            mode = (
-                "w+"
-                if self.overwrite_existing_input_commitments
-                and not self.input_commitments_initialized[player]
-                else "a+"
-            )
-            print("write mode:", mode)
-            self.input_commitments_initialized[player] = True
 
-            with file_path.open(mode) as f:
-                f.write("\n".join(commitments))
-                f.write("\n")
 

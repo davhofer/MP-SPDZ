@@ -1,0 +1,7 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+commitment = "81cc29e16ed1401d81f5ab2cf4beda687bde9c3fb80190a94c81cb067b926ee73362ee1fe546401b09bd35065ee0b33d"
+
+v = sint.input_tensor_via(0, content=[i+1 for i in range(3000)], commitment=commitment)

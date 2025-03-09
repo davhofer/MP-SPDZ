@@ -41,22 +41,55 @@ vector<CurveField>
 
 class KZGCommitmentScheme {
 public:
-    KZGSettings settings;
     typedef P381Element CurvePoint;
 
     ~KZGCommitmentScheme() {
-        free_trusted_setup(&settings);
     }
 
-    void setup();
+    std::vector<typename P381Element::Point> alpha_g1_points;
+    g2_t alpha_g2;
+
+    void setup(size_t d, PRNG &shared_prng);
 
     // TODO: commit to shares or values?
-    P381Element commit(const std::vector<typename P381Element::Field> &poly);
+    P381Element commit(const std::vector<typename P381Element::Scalar> &poly);
 
     P381Element prove(typename P381Element::Point commitment, std::vector<typename P381Element::Field> &input_poly, typename P381Element::Field z, typename P381Element::Field y);
 
     bool verify(typename P381Element::Point c, typename P381Element::Field beta, typename P381Element::Field rho, typename P381Element::Point pi);
 };
 
+class PedVecCommitmentScheme {
+public:
+    typedef P381Element CurvePoint; // TODO: try out P381Element
+    //
+    size_t n;
+    std::vector<typename P381Element::Point> bases;
+
+    void setup(size_t d, PRNG &shared_prng);
+
+    // TODO: commit to shares or values?
+    P381Element commit(const std::vector<typename P381Element::Scalar> &poly);
+
+};
+
+/*
+class PedVecCommitmentScheme {
+public:
+    typedef P256Element CurvePoint; // TODO: try out P381Element
+    //
+    size_t n;
+    std::vector<P256Element> bases;
+
+    ~PedVecCommitmentScheme() {
+        P256Element::finish();
+    }
+    void setup(size_t d, PRNG &shared_prng);
+
+    // TODO: commit to shares or values?
+    P256Element commit(const std::vector<typename P256Element::Scalar> &poly);
+
+};
+*/
 
 #endif

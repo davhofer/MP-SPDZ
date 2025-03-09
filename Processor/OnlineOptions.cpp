@@ -21,6 +21,7 @@ OnlineOptions::OnlineOptions() : playerno(-1)
 {
     interactive = false;
     lgp = gfp0::MAX_N_BITS;
+    cc_maxsize = 4096;
     live_prep = true;
     batch_size = 1000;
     memtype = "empty";
@@ -196,6 +197,15 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
                 "-P", // Flag token.
                 "--prime" // Flag token.
         );
+        opt.add(
+                "4096", // Default.
+                0, // Required?
+                1, // Number of args expected.
+                0, // Delimiter if expecting multiple args.
+                "Max. input size for consistency check",
+                "-M", // Flag token.
+                "--maxsize" // Flag token.
+        );
     }
     if (default_live_prep)
         opt.add(
@@ -277,6 +287,7 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
         opt.get("--prime")->getString(p);
         if (not p.empty())
             prime = bigint(p);
+        opt.get("--maxsize")->getInt(cc_maxsize);
     }
     if (default_live_prep)
         live_prep = not opt.get("-F")->isSet;

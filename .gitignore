@@ -138,3 +138,5 @@ doc/xml
 ################
 mpspdz_env/
 deps/libff/
+deps/SimplestOT_C/
+deps/c-kzg/

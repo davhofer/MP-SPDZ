@@ -1,0 +1,17 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+
+v1 = sint.input_tensor_via(1, content=[i+1 for i in range(8003)])
+# v2 = sint.input_tensor_via(1, content=[i+1 for i in range(3000)])
+# v3 = sint.input_tensor_via(0, content=[i+1 for i in range(1234)])
+CC.commit(v1)
+# CC.commit(v2)
+# CC.commit(v3)
+
+
+# ped commitments:
+# range(8003): "94464794ef688ae7b4d389c42539dd853eb88c981c6cfc830e38b9c6b24bb6ea9fd29360d899cad18bddb13f820c9fa7"
+# range(3000): "81cc29e16ed1401d81f5ab2cf4beda687bde9c3fb80190a94c81cb067b926ee73362ee1fe546401b09bd35065ee0b33d"
+# range(1234): "a904f07d8eb0f949830f86f0d7b3767050f177923055cb64eedadf96f85e32957875409f31800c6954fd339307e78f20"

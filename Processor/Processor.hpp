@@ -1,6 +1,12 @@
 #ifndef PROCESSOR_PROCESSOR_HPP_
 #define PROCESSOR_PROCESSOR_HPP_
 
+/*
+// recent approach:
+// without ConsistencyCheck.h, moved it to Processor.h
+*/
+
+// previous appraoch:
 #include "Processor/Processor.h"
 #include "Processor/Program.h"
 #include "GC/square64.h"
@@ -19,6 +25,7 @@
 #include "Processor/ConsistencyCheck.h"
 
 
+
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
     Preprocessing<T>& DataF, Player& P) :
@@ -26,11 +33,14 @@ SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& 
 {
 }
 
+// : CC(std::make_unique<ConsistencyCheck<T, COMMITTYPE>>(42, 3.14, "hello")) 
+
 template <class T>
 SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
     Preprocessing<T>& DataF, Player& P, ArithmeticProcessor* Proc) :
     Proc(Proc), MC(MC), P(P), DataF(DataF), protocol(P), input(*this, MC),
-    bit_prep(bit_usage), shuffler(*this), CC(this, &this->P)
+    bit_prep(bit_usage), shuffler(*this),
+    CC(std::make_unique<ConsistencyCheck<T, COMMITTYPE>>(this, &this->P, &this->get_S(), &this->get_C(), &this->Proc->commitment_input, MC.get_alphai()))
 {
   DataF.set_proc(this);
   protocol.init(DataF, MC);
@@ -40,7 +50,9 @@ SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
   personal_bit_preps.resize(P.num_players());
   for (int i = 0; i < P.num_players(); i++)
     personal_bit_preps[i] = new typename BT::LivePrep(bit_usage, i);
-  CC.setup();
+    
+  int d = OnlineOptions::singleton.cc_maxsize;
+  CC->setup(d);
 }
 
 template<class T>
@@ -936,106 +948,47 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
 // Consistency Check
 template<class T>
 void SubProcessor<T>::gen_commitment(int addr, int size, MemoryPart<T> &memory) {
-    std::cout << "\nTODO: remove. Executing SubProcessor::gen_commitment with addr " << addr << ", size " << size << ", memory size " << memory.size() << "\n\n";
+    std::cout << "\nPROCESSOR.gen_commitment()\n";
+    std::cout << "addr: " << addr << std::endl;
+    std::cout << "size: " << size << std::endl;
+    std::cout << "memor size: " << memory.size() << std::endl;
 
-    // test_gfp_fr_conversion();
-    // ConsistencyCheck<T, KZGCommitmentScheme> CC(this, &this->P);
-    // CC.setup();
 
     // TODO: should we pass a pointer into memory.data() instead?
     std::vector<T> shares(size);
-    for(int i=0;i<size;i++) shares[i] = memory[addr + i];
+    for(size_t i=0;i<(size_t)size;i++) shares[i] = memory[addr + i];
 
-    CC.commit_secret(shares);
+    /*
+    auto comm_start = P.total_comm();
+    Timer t;
+    t.start();
+    */
 
-    std::cout << "SubProcessor::gen_commitment finished.\n";
+    CC->commit_secret(shares);
 
+    /*
+    double duration = t.elapsed();
+    t.stop();
+    std::cout << "TIMER:commit:"<<duration<<std::endl;
 
-    // std::cout << "TESTING BYTE CONVERSIONS CKZG: \n";
-    // test_ckzg_byte_conversion();
-
+    auto diff = P.total_comm() - comm_start;
+    std::cout << "COMM:commit:start\n";
+    diff.print();
+    std::cout << "COMM:commit:end\n";
+    */
 }
 
+// void SubProcessor<T>::input_with_check(const vector<int> &args) {
 template<class T>
-void SubProcessor<T>::input_with_check(const vector<int> &args) {
-    std::cout << "\nTODO: remove. Executing Processor::input_with_check with #args " << args.size() << "\n\n";
+void SubProcessor<T>::consistencycheck(const vector<int>& args, MemoryPart<T> &memory) {
+    std::cout << "\nPROCESSOR.consistencycheck()\n\n";
+    std::cout << "len args: " << args.size() << std::endl;
 
-    // number of batched instructions
-    size_t n = args.size()/4;
-    std::cout << "Checking " << n << " input commitments...\n";
-    std::vector<int> prover_nums(n), input_sizes(n), share_addresses(n), clear_addresses(n);
-    
-  input.reset_all(P);
-  // loop over each individual input_with_check call, adding inputs from individual parties to input protocol
-  for (size_t i = 0; i < args.size(); i += 4)
-    if (args[i + 1] == P.my_num())
-      {
-        auto begin = C.begin() + args[i + 3];
-        auto end = begin + args[i];
-        assert(end <= C.end());
-        for (auto it = begin; it < end; it++)
-          input.add_mine(*it);
-      }
-    else
-      for (int j = 0; j < args[i]; j++)
-        input.add_other(args[i + 1]);
-  input.exchange(); // exchange input values
-  // loop over each individual input_with_check call, finalizing the inputs received from other parties
-  for (size_t i = 0; i < args.size(); i += 4)
-    {
-      auto begin = S.begin() + args[i + 2];
-      auto end = begin + args[i];
-      assert(end <= S.end());
-      for (auto it = begin; it < end; it++) {
-        *it = input.finalize(args[i + 1]);
-      }
 
-      input_sizes[i/4] = args[i];
-      prover_nums[i/4] = args[i + 1];
-      share_addresses[i/4] = args[i+2];
-      clear_addresses[i/4] = args[i+3];
-      // custom input_with_check code
-        //
-        //
-        // TODO: can do batch verification here, because we receive a vector at once!
-        // TODO: in loop, simply assemble args for CC.check_batch
-      /*
-       
-      vector<T> shared_input(begin, end);
-      vector<typename T::clear> clear_input;
 
-      std::cout << "New input, checking commitment...\n";
-      if (args[i + 1] == P.my_num()) {
-        std::cout << "I am the prover!\n";
-        auto cbegin = C.begin() + args[i + 3];
-        auto cend = cbegin + args[i];
-        assert(cend <= C.end());
-        std::cout << "secret input values:\n";
-        for (auto it = cbegin; it < cend; it++) {
-          std::cout << (*it) << std::endl;
-        }
-        // run CC.check with the clear_input
-        clear_input = vector<typename T::clear>(cbegin, cend);
-      } else {
+    bool result = CC->check_batch(args, memory);
 
-        std::cout << "I am verifier\n";
-        // runn CC.check with dummy clear_input vector
-        clear_input = vector<typename T::clear>(shared_input.size());
-      }
-
-      bool result = CC.check(args[i + 1], shared_input, clear_input);
-      // how to communicate result back to python?
-      std::cout << "\nOutput of CC.check: " << result << std::endl;
-
-      */
-
-    }
-
-    // TODO: do batch verification/CC.check_batch here
-    // args: prover nums, input lengths, Secret shares address, clear input address
-    std::cout << "\ninitiating CC.check_batch...\n";
-    bool result = CC.check_batch(prover_nums, input_sizes, share_addresses, clear_addresses);
-    std::cout << "\n * * * * * * * * * * * *\nCC.check result: " << result << "\n * * * * * * * * * * * *\n" << std::endl;
+    std::cout << "\n\n>> CC.check result: " << result << "\n" << std::endl;
 }
 
 /**

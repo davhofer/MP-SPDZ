@@ -1,0 +1,21 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+inputs = [
+    [i+1 for i in range(8003)],
+    [i+1 for i in range(3000)],
+    [i+1 for i in range(1234)],
+]
+
+commitments = [
+    "94464794ef688ae7b4d389c42539dd853eb88c981c6cfc830e38b9c6b24bb6ea9fd29360d899cad18bddb13f820c9fa7",
+    "81cc29e16ed1401d81f5ab2cf4beda687bde9c3fb80190a94c81cb067b926ee73362ee1fe546401b09bd35065ee0b33d",
+    "a904f07d8eb0f949830f86f0d7b3767050f177923055cb64eedadf96f85e32957875409f31800c6954fd339307e78f20",
+]
+
+v1 = sint.input_tensor_via(0, inputs[0])
+v2 = sint.input_tensor_via(1, inputs[1])
+v3 = sint.input_tensor_via(1, inputs[2])
+
+CC.check_batch([0, 1, 1], [v1, v2, v3], commitments)

@@ -18,6 +18,7 @@ public:
     bool interactive;
     int lgp;
     bigint prime;
+    int cc_maxsize; // max input size for consistency check
     bool live_prep;
     int playerno;
     std::string progname;

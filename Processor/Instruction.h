@@ -316,7 +316,7 @@ enum
     RESPSECURESOCKET = 0x1BB,
     // Consistency check 
     COMMITSECRET = 0x40,
-    INPUTWITHCHECK = 0x41,
+    CONSISTENCYCHECK = 0x41,
 };
 
 

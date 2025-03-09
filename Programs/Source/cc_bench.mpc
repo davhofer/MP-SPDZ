@@ -1,0 +1,9 @@
+from Compiler.library import ConsistencyCheck
+
+CC = ConsistencyCheck()
+
+commitments = ["83be4681a6a3485d7a98b6ebb90caa90f1820cbce4bca0be82a38c5c51e6a6d726893fb5a9f0fc2ca981136ef8481963" for _ in range(1000)]
+inputs = [sint.input_tensor_via(0, content=[j for j in range(4096)], binary=False) for i in range(1000)]
+input_parties = [0 for _ in range(1000)] 
+
+CC.check_batch(input_parties, inputs, commitments)

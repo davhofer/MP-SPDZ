@@ -237,6 +237,8 @@ public:
 
   virtual string get_id() const { throw not_implemented(); }
 
+  size_t get_sent() { return sent; };
+
   /**
    * Get number of players
    */

@@ -1,0 +1,14 @@
+from Compiler.library import ConsistencyCheck
+from Compiler import ml
+
+CC = ConsistencyCheck()
+
+c = "ab6454ee71a2f5b93d9fef5fd25eb4418709444734a6d0d530554fea2b879f29b955f739ab39ca041b80a3ca416dc797" # 1234
+c = "b7c2723ba1b2e74cc7b9ad074ad3374a331c85e3f844932c6ebe461ab718a1d39e167df561666f7361941ceebe6993c3"
+c = "b6408ac088c5c7ef0e740a703c2bdd86ce52f56f5d6c82b16588a9225847e88383407dd0596fde25aa31d1940527cb0d"
+
+v = sint.input_tensor_via(1, content=[[1, 0, 2, 3], [3, 4, 5, 7]], commitment=c)
+
+CC.commit(v)
+
+print_ln(v.reveal())

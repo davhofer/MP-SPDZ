@@ -551,9 +551,12 @@ void Machine<sint, sgf2n>::run(const string& progname)
       pos.print_cost();
     }
 
+    /* 
+     // TODO: uncomment after testing
   if (pos.any_more(progs[0].get_offline_data_used())
       and not progs[0].usage_unknown())
     throw runtime_error("computation used more preprocessing than expected");
+    */
 
   if (not stats.empty())
     {

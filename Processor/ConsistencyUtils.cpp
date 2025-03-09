@@ -31,8 +31,22 @@ void convert_value(gfp_<0, 4> *to, const blst_fp *from) {
     *to = gfp_<0, 4>(b);
 }
 
+/*
+void convert_value(gfp_<0, 4> *to, const blst_fp2 *from) {
+    uint64_t vals[6] = {0};
+    blst_uint64_from_fp2(vals, from);
+    // TODO: is this correct?
+    bigint b(vals, 6);
+    *to = gfp_<0, 4>(b);
+}
+*/
+
 void convert_value(g1_t *to, const fr_t *from) {
     g1_mul(to, blst_p1_generator(), from);
+}
+
+void convert_value(blst_scalar *to, const gfp_<0, 4> *from) {
+    blst_scalar_from_uint64(to, from->as_bigint().data);
 }
 
 /**
@@ -131,7 +145,7 @@ std::pair<std::vector<fr_t>, fr_t> polynomial_division_X_minus_c(const std::vect
     
     // Use synthetic division (with modular arithmetic assumed inside fr_t operators)
     quotient[n - 2] = poly[n - 1];
-    for (int i = n - 3; i >= 0; --i) {
+    for (long i = n - 3; i >= 0; --i) {
         // quotient[i] = quotient[i + 1] * c + poly[i + 1];
         fr_t tmp;
         blst_fr_mul(&tmp, &quotient[i+1], &c);
@@ -148,5 +162,67 @@ std::pair<std::vector<fr_t>, fr_t> polynomial_division_X_minus_c(const std::vect
     return {quotient, remainder};
 }
 
+void g2_sub(g2_t *out, const g2_t *a, const g2_t *b) {
+    g2_t bneg = *b;
+    blst_p2_cneg(&bneg, true);
+    blst_p2_add_or_double(out, a, &bneg);
+}
+
+void g2_mul(g2_t *out, const g2_t *a, const fr_t *b) {
+    blst_scalar s;
+    blst_scalar_from_fr(&s, b);
+    // BITS_PER_FIELD_ELEMENT = 255
+    blst_p2_mult(out, a, s.b, 255);
+}
+
+void bytes_from_g2(blst_byte *out, const g2_t *in) {
+    blst_p2_compress(out, in);
+    // void blst_p2_compress(byte out[96], const blst_p2 *in);
+}
+
+
+/**
+ * Convert untrusted bytes into a trusted and validated KZGCommitment.
+ *
+ * @param[out]  out The output commitment
+ * @param[in]   b   The commitment bytes
+ */
+C_KZG_RET bytes_to_kzg_commitment(g2_t *out, const blst_byte *b) {
+    blst_p2_affine p2_affine;
+
+    /* Convert the bytes to a p2 point */
+    /* The uncompress routine checks that the point is on the curve */
+    if (blst_p2_uncompress(&p2_affine, b) != BLST_SUCCESS) return C_KZG_BADARGS;
+    blst_p2_from_affine(out, &p2_affine);
+
+    /* The point at infinity is accepted! */
+    if (blst_p2_is_inf(out)) return C_KZG_OK;
+    /* The point must be on the right subgroup */
+    if (!blst_p2_in_g2(out)) return C_KZG_BADARGS;
+
+    return C_KZG_OK;
+}
+
+std::vector<gfp_<0, 4>> read_clear_input(std::ifstream &infile, size_t n) {
+    // std::string filename = "myfile"; // Path to the file
+    // std::ifstream infile(filename);
+    if (!infile) {
+        std::cerr << "ERROR: opening file!" << std::endl;
+        return {};
+    }
+
+    std::vector<gfp_<0, 4>> input;
+    input.reserve(n); 
+
+    int x;
+    for (size_t i = 0; i < n; i++) {
+        if (!(infile >> x)) { 
+            std::cerr << "ERROR: Failed to read integer at index " << i << std::endl;
+            return {}; 
+        }
+        input.emplace_back(x);
+    }
+    return input;
+}
 
 #endif
