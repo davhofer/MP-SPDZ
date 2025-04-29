@@ -3,14 +3,11 @@
 
 #include "Processor/ConsistencyUtils.h"
 #include "Math/gfp.hpp"
-#include <algorithm>  // for remove_if, all_of
-#include <cctype>     // for isspace, isxdigit 
-#include <cstdlib>    // for strtol
+#include <algorithm>  
+#include <cctype>     
+#include <cstdlib>
 #include <string>
 
-
-// TODO: sample random scalar 
-// TODO: secret-share new value through protocol
 
 void convert_value(blst_fr *to, const gfp_<0, 4> *from) {
     blst_fr_from_uint64(to, from->as_bigint().data);
@@ -30,16 +27,6 @@ void convert_value(gfp_<0, 4> *to, const blst_fp *from) {
     bigint b(vals, 6);
     *to = gfp_<0, 4>(b);
 }
-
-/*
-void convert_value(gfp_<0, 4> *to, const blst_fp2 *from) {
-    uint64_t vals[6] = {0};
-    blst_uint64_from_fp2(vals, from);
-    // TODO: is this correct?
-    bigint b(vals, 6);
-    *to = gfp_<0, 4>(b);
-}
-*/
 
 void convert_value(g1_t *to, const fr_t *from) {
     g1_mul(to, blst_p1_generator(), from);
@@ -84,7 +71,7 @@ bool read_single_hex_string(ifstream &input_file, octetStream &os)
     os.resize(num_bytes);
     
     // Convert hex string to bytes
-    // TODO: optimize this
+    // can optimize this?
     for (size_t i = 0; i < num_bytes; i++)
     {
         string byte_str = line.substr(i * 2, 2);
@@ -101,16 +88,6 @@ bool read_single_hex_string(ifstream &input_file, octetStream &os)
     
     return true;
 }
-
-// TODO: leave here? or in PCS file?
-// input is a vector of scalar shares
-// TODO: is this again lincomb?
-// p0 + p1 x + p2 x^2 + p3 x^3 + p4 x^4 + ...
-// TODO: first compute powers of beta, then do lincomb fast. or do it all in for loop. which one is faster
-//
-
-
-
 
 std::pair<std::vector<fr_t>, fr_t> polynomial_division_X_minus_c(const std::vector<fr_t>& poly, fr_t c) {
     // Handle edge cases

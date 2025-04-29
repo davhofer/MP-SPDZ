@@ -1,12 +1,6 @@
 #ifndef PROCESSOR_PROCESSOR_HPP_
 #define PROCESSOR_PROCESSOR_HPP_
 
-/*
-// recent approach:
-// without ConsistencyCheck.h, moved it to Processor.h
-*/
-
-// previous appraoch:
 #include "Processor/Processor.h"
 #include "Processor/Program.h"
 #include "GC/square64.h"
@@ -24,16 +18,12 @@
 
 #include "Processor/ConsistencyCheck.h"
 
-
-
 template <class T>
 SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
     Preprocessing<T>& DataF, Player& P) :
     SubProcessor<T>(MC, DataF, P, &Proc)
 {
 }
-
-// : CC(std::make_unique<ConsistencyCheck<T, COMMITTYPE>>(42, 3.14, "hello")) 
 
 template <class T>
 SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
@@ -129,9 +119,7 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   string commitment_input_prefix = "Player-Data/Input-Commitments";
   commitment_input_filename = get_parameterized_filename(P.my_num(), thread_num,
       commitment_input_prefix);
-    // TODO: close file?
   commitment_input.open(commitment_input_filename);
-  std::cout << "\nTODO: remove. Opened commitment input at " << commitment_input_filename << "\n\n";
 
   secure_prng.ReSeed();
   shared_prng.SeedGlobally(P, false);
@@ -995,43 +983,16 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
 // Consistency Check
 template<class T>
 void SubProcessor<T>::gen_commitment(int addr, int size, MemoryPart<T> &memory) {
-    std::cout << "\nPROCESSOR.gen_commitment()\n";
-    std::cout << "addr: " << addr << std::endl;
-    std::cout << "size: " << size << std::endl;
-    std::cout << "memor size: " << memory.size() << std::endl;
 
-
-    // TODO: should we pass a pointer into memory.data() instead?
     std::vector<T> shares(size);
     for(size_t i=0;i<(size_t)size;i++) shares[i] = memory[addr + i];
 
-    /*
-    auto comm_start = P.total_comm();
-    Timer t;
-    t.start();
-    */
-
     CC->commit_secret(shares);
-
-    /*
-    double duration = t.elapsed();
-    t.stop();
-    std::cout << "TIMER:commit:"<<duration<<std::endl;
-
-    auto diff = P.total_comm() - comm_start;
-    std::cout << "COMM:commit:start\n";
-    diff.print();
-    std::cout << "COMM:commit:end\n";
-    */
 }
 
 // void SubProcessor<T>::input_with_check(const vector<int> &args) {
 template<class T>
 void SubProcessor<T>::consistencycheck(const vector<int>& args, MemoryPart<T> &memory) {
-    std::cout << "\nPROCESSOR.consistencycheck()\n\n";
-    std::cout << "len args: " << args.size() << std::endl;
-
-
 
     bool result = CC->check_batch(args, memory);
 

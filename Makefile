@@ -423,7 +423,6 @@ endif
 
 
 # Consistency Check deps 
-# TODO: check if this works
 ckzg:
 	git submodule update --init deps/c-kzg
 	cd deps/c-kzg/ && make c

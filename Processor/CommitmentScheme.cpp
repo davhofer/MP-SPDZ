@@ -5,13 +5,10 @@
 #include <libff/algebra/scalar_multiplication/multiexp.hpp>
 
 
-
 void KZGCommitmentScheme::setup(size_t d, PRNG &shared_prng) {
     (void) shared_prng;
 
-
-
-
+    // load trusted setup
     const char *file_path = "deps/c-kzg/src/trusted_setup.txt"; 
     FILE *file = fopen(file_path, "rb");  
 
@@ -32,24 +29,17 @@ void KZGCommitmentScheme::setup(size_t d, PRNG &shared_prng) {
         alpha_g1_points[i] = settings.g1_values_monomial[i % 4096];
     }
     alpha_g2 = settings.g2_values_monomial[1];
-
     free_trusted_setup(&settings);
-
 }
 
 
+// Compute commitment using g1_lincomb_fast
 P381Element KZGCommitmentScheme::commit(const std::vector<typename P381Element::Scalar> &poly) {
-
-
-
     assert(poly.size() <= alpha_g1_points.size());
-
     std::vector<typename P381Element::Field> coeffs(poly.size());
-
 
     for (unsigned long i = 0; i < poly.size(); i++) 
         convert_value(&coeffs[i], &poly[i]);
-
 
     CurvePoint::Point out;
     C_KZG_RET ret = g1_lincomb_fast(&out, alpha_g1_points.data(), coeffs.data(), coeffs.size());
@@ -65,36 +55,22 @@ P381Element KZGCommitmentScheme::prove(typename P381Element::Point commitment, s
     // note that y = poly(z) 
     fr_t tmp;
     blst_fr_sub(&tmp, &input_poly[0], &y);
-
-
     input_poly[0] = tmp;
-    
-    /*
-    std::vector<fr_t> divisor(2);
-    divisor[1] = FR_ONE;
-    blst_fr_sub(&divisor[0], &FR_ZERO, &z);
-    */
-
-
     std::pair<std::vector<fr_t>, fr_t> res = polynomial_division_X_minus_c(input_poly, z);
 
-
-    // check remainder == 0
     /*
-     * TODO: uncomment, benchmarking
+     * commented for benchmarking
     if (!fr_equal(&res.second, &FR_ZERO)) {
         std::cout << "\nERROR: poly. division: remainder not zero!\n\n";
         return P381Element();
     }
     */
     
-
     g1_t pi;
     C_KZG_RET ret = g1_lincomb_fast(&pi, alpha_g1_points.data(), res.first.data(), res.first.size());
     assert(ret == C_KZG_OK);
     P381Element proof(pi);
     return proof;
-
 }
 
 
@@ -127,7 +103,6 @@ void PedVecCommitmentScheme::setup(size_t d, PRNG &shared_prng) {
     bases.clear();
     bases.reserve(d);
 
-
     typename P381Element::Scalar x(3);
     P381Element current(x);
     for (size_t i=0;i<n;i++) {
@@ -135,11 +110,8 @@ void PedVecCommitmentScheme::setup(size_t d, PRNG &shared_prng) {
         bases.push_back(current.get_point());
         current = current * x;
     }
-
-
 }
 
-    // TODO: commit to shares or values?
 P381Element PedVecCommitmentScheme::commit(const std::vector<typename P381Element::Scalar> &poly) {
     assert(poly.size() <= n);
 
@@ -152,8 +124,5 @@ P381Element PedVecCommitmentScheme::commit(const std::vector<typename P381Elemen
     C_KZG_RET ret = g1_lincomb_fast(&out, bases.data(), coeffs.data(), coeffs.size());
     assert(ret == C_KZG_OK);
     return P381Element(out);
-
 }
-
-
 #endif

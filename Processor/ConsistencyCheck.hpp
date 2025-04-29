@@ -20,17 +20,9 @@
 #include <fstream>
 #include <vector>
 
-
-//////////////////////////////////////////////////////////////////////////////////
-
-
 #define NO_SECURITY_CHECK
 
 #define NO_MIXED_CIRCUITS
-
-
-
-
 
 template<class T, class CurveShare, class ScalarShare>
 bool check_commitment(
@@ -44,16 +36,13 @@ bool check_commitment(
     int my_num = cc->P->my_num();
 
     // for benchmarking: party 0 is always the prover
-
     bool is_benchmark_prover = my_num == 0;
-
 
     size_t total_data_sent = 0;
     size_t data_start = 0;
     size_t data_end = 0;
 
     double t_total = 0;
-
 
     size_t n = args.size()/3;
 
@@ -62,16 +51,15 @@ bool check_commitment(
     std::vector<typename KZGCommitmentScheme::CurvePoint> omega_commitments(n), commitments(n);
     std::vector<typename KZGCommitmentScheme::CurvePoint::Scalar> rhos(n), prover_omegas(n);
 
-
     // NOTE: we assume all parties already have the commitments/secret shares
     for (size_t i=0;i<n;i++) {
         bool is_prover = my_num == args[3*i];
 
-        // TODO: is allocating a new octetStream for every iteration too inefficient?
+        // is allocating a new octetStream for every iteration too inefficient?
         octetStream os;
         typename KZGCommitmentScheme::CurvePoint C;
         if (is_prover) {
-            // TODO: add field for commitment input
+            // prover reads commitment and sends it to the others
             bool res = read_single_hex_string(*cc->commitment_input, os);
             assert(res);
             cc->P->send_all(os);
@@ -84,27 +72,16 @@ bool check_commitment(
         std::cout << "\nLoaded input commitment:\n" << C << std::endl;
     }
 
+    // sample and share all masking values and masking commitments
 
-    // 1. sample and share all masking values and masking commitments
-    // -> depends on who the prover is
-
-
-    // prepare input protocol (for secret-sharing values with other parties)
     cc->scalar_input_protocol.reset_all(*cc->P);
 
     // sample omegas, commit to omegas, send commitment and secret-share omega
-    
-    // TODO: can we do the sending/receiving of commitments more efficiently?
-    // => can pack all commitments into one octetStream. but how to decode them so we still know which belongs to what?
-
-
-
     for (size_t i=0;i<n;i++) {
         bool is_prover = my_num == args[3*i];
         typename KZGCommitmentScheme::CurvePoint c_omega;
         octetStream os;
         if (is_prover) {
-
             Timer t;
             t.start();
 
@@ -136,34 +113,28 @@ bool check_commitment(
         }
         omega_commitments[i] = c_omega;
     }
-
-
-
     data_start = cc->P->get_sent();
 
     cc->scalar_input_protocol.exchange();
 
     data_end = cc->P->get_sent();
     total_data_sent += data_end - data_start;
-
     
     for (size_t i=0;i<n;i++) {
         omega_shares[i] = cc->scalar_input_protocol.finalize(args[3*i]);
     }
 
-
     // 2. sample random challenge beta
     // 3. compute and open all evaluations rho
-    //
-    //
-    // For benchmarking: the following is verifier computation!
+
+    // For benchmarking: the following is verifier computation
     data_start = cc->P->get_sent();
     Timer t;
     t.start();
 
-    typename KZGCommitmentScheme::CurvePoint::Scalar beta; // use a single beta, for batch verification
+    // use a single beta, for batch verification
+    typename KZGCommitmentScheme::CurvePoint::Scalar beta; 
     beta.randomize(cc->shared_prng);
-
 
     data_end = cc->P->get_sent();
     total_data_sent += data_end - data_start;
@@ -171,8 +142,6 @@ bool check_commitment(
     typename KZGCommitmentScheme::CurvePoint::Field beta_fr;
     convert_value(&beta_fr, &beta);
 
-
-    // TODO: add field for share memory and clear memory
     std::vector<ScalarShare> rhos_shared(n);
     for (size_t i=0;i<n;i++) {
         ScalarShare rho_shared;
@@ -184,14 +153,11 @@ bool check_commitment(
         std::cout << "POLY EVAL\n";
         std::cout << "length: " << length << std::endl;
         std::cout << "beta: " << beta << std::endl;
-        // TODO: start with 1 or beta?
-        typename KZGCommitmentScheme::CurvePoint::Scalar current_beta(1); // beta;
+        typename KZGCommitmentScheme::CurvePoint::Scalar current_beta(1);
         for (int j = 0; j < length; j++) { // can we parallelize this?
             rho_shared += memory[start_addr + j] * current_beta;
             current_beta = current_beta * beta;
         }
-
-        // Scalar rho = scalar_opening_protocol.open(rho_shared);
         rhos_shared[i] = rho_shared;
     }
 
@@ -206,30 +172,22 @@ bool check_commitment(
 
     // open all shares at once
     cc->scalar_opening_protocol.POpen(rhos, rhos_shared, *cc->P);
-    // TODO: exchange all at once?
-    // is this correct?
+
     cc->scalar_opening_protocol.Check(*cc->P);
 
     data_end = cc->P->get_sent();
     if (!is_benchmark_prover) total_data_sent += data_end - data_start;
 
     std::cout << "opened rho: " << rhos[0] << std::endl;
-    /*
- * 4. prover generates a proof pi <- PC.Prove(c + c_omega, Poly[x] + Poly[omega], beta, rho), and sends pi to all verifiers
- * 5. verifiers run PC.Check with same inputs (except Poly of x and omega), to make sure evaluation proof is correct
-    */
+    // prover generates a proof pi <- PC.Prove(c + c_omega, Poly[x] + Poly[omega], beta, rho), and sends pi to all verifiers
+    // verifiers run PC.Check with same inputs (except Poly of x and omega), to make sure evaluation proof is correct
 
     std::vector<typename KZGCommitmentScheme::CurvePoint::Scalar> verify_rhos;
     std::vector<typename KZGCommitmentScheme::CurvePoint> verify_commitments, verify_proofs;
 
-
-    // 4. compute and share all proofs pi 
-    // -> depends on who the prover is
+    // compute and share all proofs pi 
     // also prepare the inputs for batch verification
-
     int clear_input_ptr = -1;
-
-
 
     for (size_t i=0;i<n;i++) {
         int prover = args[3*i];
@@ -237,7 +195,7 @@ bool check_commitment(
 
         // => we use poly. commit scheme here 
         typename KZGCommitmentScheme::CurvePoint c = commitments[i] + omega_commitments[i];
-        // blst_p1_add(&c, &commitments[i], &omega_commitments[i]);
+
         octetStream os;
         typename KZGCommitmentScheme::CurvePoint pi;
         if (prover == my_num) {
@@ -247,21 +205,15 @@ bool check_commitment(
             t.start();
             clear_input_ptr++;
 
-
             // compute and send proof
             std::vector<typename KZGCommitmentScheme::CurvePoint::Field> input_poly(input_size);
 
-            // TODO: correct?
             typename KZGCommitmentScheme::CurvePoint::Scalar coeff0 = clear_inputs[clear_input_ptr][0] + prover_omegas[i];
-
-
             convert_value(&input_poly[0], &coeff0);
-
 
             for (int j=1; j < input_size; j++) {
                 convert_value(&input_poly[j], &clear_inputs[clear_input_ptr][j]);
             }
-
 
             typename KZGCommitmentScheme::CurvePoint::Field rho_fr;
             convert_value(&rho_fr, &rhos[i]);
@@ -280,7 +232,6 @@ bool check_commitment(
 
             data_end = cc->P->get_sent();
             total_data_sent += data_end - data_start;
-
         } else {
             std::cout << "I AM VERIFIER\n";
             // set up verification input
@@ -302,8 +253,6 @@ bool check_commitment(
 
     }
 
-
-
     if (is_benchmark_prover) {
         std::cout << "DATA:check:" << total_data_sent << std::endl;
         std::cout << "TIMER:check:" << t_total << std::endl;
@@ -312,7 +261,7 @@ bool check_commitment(
     int n_verify = verify_commitments.size();
     if (n_verify == 0) return true;
 
-    // 5. a) if we only have one commitment to verify, do it directly
+    // if we only have one commitment to verify, do it directly
     bool result;
     if (n_verify == 1) {
         std::cout << "\nperforming single verification...\n";
@@ -330,11 +279,8 @@ bool check_commitment(
         std::cout << "verifying the proof took " << tmp << " seconds\n";
 
     } else {
-        // 5. b) otherwise perform batched verification
+        // otherwise perform batched verification
         std::cout << "\nperforming batch verification...\n";
-
-        // TODO: might want to move this INSIDE of KZG commitment scheme 
-        // since it is specific to that scheme
 
         typename KZGCommitmentScheme::CurvePoint::Scalar current_gamma(1), gamma, rho_tilde(0);
 
@@ -386,13 +332,11 @@ bool check_commitment(
     int my_num = cc->P->my_num();
 
     // for benchmarking: party 0 is always the prover
-
     bool is_benchmark_prover = my_num == 0;
 
     size_t total_data_sent = 0;
 
     double t_total = 0;
-
 
     // in pedersen vector commitments, there is no special prover work, verifiers just recompute the commitment
     if (is_benchmark_prover) {
@@ -400,19 +344,16 @@ bool check_commitment(
         std::cout << "TIMER:check:" << t_total << std::endl;
     }
 
-
     size_t n = args.size()/3;
-
     for (size_t i=0;i<n;i++) {
         int prover = args[3*i];
         bool is_prover = my_num == prover;
 
-        // TODO: is allocating a new octetStream for every iteration too inefficient?
-        // NOTE: for benchmarking, we're assuming that the verifiers already have the commitments and the the shares
+        // is allocating a new octetStream for every iteration too inefficient?
+        // NOTE: for benchmarking (i.e. measuring the communication), we're assuming that the verifiers already have the commitments and the the shares
         octetStream os;
         typename PedVecCommitmentScheme::CurvePoint C;
         if (is_prover) {
-            // TODO: add field for commitment input
             bool res = read_single_hex_string(*cc->commitment_input, os);
             assert(res);
             cc->P->send_all(os);
@@ -422,14 +363,12 @@ bool check_commitment(
         C.unpack(os);
         std::cout << "\nLoaded input commitment:\n" << C << std::endl;
 
-        // TODO: check
         int share_addr = args[3*i+1];
         int len = args[3*i+2];
         
         Timer t;
         t.start();
 
-        // TODO: use cc->commit
         std::vector<T> shares(len);
         for(int j=0;j<len;j++) shares[j] = memory[share_addr + j];
 
@@ -481,13 +420,7 @@ ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubP
     : random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     std::cout << "Rep3Share CC initializer\n";
     (void) alphai;
-    // TODO: could this be made Share-type agnostic? fully templated? i.e. replace Rep3Share with SecretShare, anything that won't work?
-
- // TODO: curve init required? think not
-
-  // (old) here we only need to initialize the curve params, not the field, because
-  // the field is the same as the scalar field used by MPC and already
-  // initialized!
+    // could this be made Share-type agnostic? fully templated? i.e. replace Rep3Share with SecretShare, anything that won't work?
   
   typename ScalarShare::mac_key_type input_mac_key;
   ScalarShare::read_or_generate_mac_key("", *P, input_mac_key);
@@ -496,27 +429,16 @@ ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubP
   sig_pk_protocol = (typename PkShare::MAC_Check)(input_mac_key);
   sig_protocol = (typename SigShare::MAC_Check)(input_mac_key);
 
-  // typename Rep3Share<typename CurvePoint>::mac_key_type input_mac_key2;
-  // TODO: reset to use input_amc_key2: typename CurveShare::mac_key_type input_mac_key2;
-  // Rep3Share<typename CurvePoint>::read_or_generate_mac_key("", P,
-  //                                                    input_mac_key2);
   CurveShare::read_or_generate_mac_key("", *P, input_mac_key); // key2
-  // opening_protocol =
-  //     (typename Rep3Share<typename CurvePoint>::MAC_Check)(input_mac_key2);
   opening_protocol =
       (typename CurveShare::MAC_Check)(input_mac_key); // key2
 
-  mac_key = input_mac_key; // key2
-    //
+  mac_key = input_mac_key; 
+    
 
     S_ptr = processor_S;
     C_ptr = processor_C;
     commitment_input = processor_commitment_input;
-
-  // P377Element::Scalar::init_field(gfp_<0, 4>::pr());
-
-  //  bigint::init_thread();
-  // sp.P.num_players();
 
   secure_prng.ReSeed();
   shared_prng.SeedGlobally(*P, false);
@@ -538,7 +460,6 @@ ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::~ConsistencyCheck() {
         personal_input.close();
 }
 
-// TODO: specific implementations...
 template <class CommitmentScheme> 
 void ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::setup(size_t d) {
     int n = P->my_num();
@@ -566,7 +487,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<Rep3Share<gfp_<0, 4>>, Co
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "ERROR: Setup not performed yet, must be done first!\n";
         return {};
@@ -585,13 +505,10 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<Rep3Share<gfp_<0, 4>>, Co
         coeffs2[i] = shares[i].get()[1];
     }
 
-
-
     array<CurvePoint, 2> committed_shares = {
         commitment_scheme.commit(coeffs1), 
         commitment_scheme.commit(coeffs2)
     };
-
 
     CurveShare C_shared = CurveShare(committed_shares); // Rep3Share<CurvePoint>
     CurvePoint C = opening_protocol.open(C_shared, *P);
@@ -618,9 +535,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<Rep3Share<gfp_<0, 4>>, Co
 
     return C;
 }
-
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// sign_commitment
@@ -662,8 +576,6 @@ P381ElementG2 ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::dist_si
     octetStream os;
     p.pack(os);
 
-
-     
     g2_t hashed;
     blst_hash_to_g2(&hashed, os.get_data(), os.get_length(), NULL, 0, NULL, 0);
     // extract sk share values,
@@ -683,8 +595,6 @@ P381ElementG2 ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::dist_si
     g2_t p2;
     blst_sign_pk_in_g1(&p2, &hashed, &sc2);
 
-
-
     P381ElementG2 sig1(p1), sig2(p2);
 
     // reconstruct pk shares, open pk
@@ -703,9 +613,6 @@ P381ElementG2 ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::dist_si
 
     return signature;
 }
-
-// TODO: specific implementations...
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// check_batch
@@ -735,10 +642,7 @@ bool ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::check_batch(cons
         }
     }
 
-
     // args: (prover_num, address, length)
-
-
     bool res = check_commitment<Rep3Share<gfp_<0, 4>>, CurveShare, ScalarShare>(
         args,
         memory,
@@ -750,14 +654,6 @@ bool ConsistencyCheck<Rep3Share<gfp_<0, 4>>, CommitmentScheme>::check_batch(cons
 
     return res;
 }
-
-
-
-////////////////////////////////////////////////////////////////////////////////////// end
-////////////////////////////////////////////////////////////////////////////////////// end
-////////////////////////////////////////////////////////////////////////////////////// end
-////////////////////////////////////////////////////////////////////////////////////// end
-////////////////////////////////////////////////////////////////////////////////////// end
 
 
 //////////////////////////////////////////////////////////////////
@@ -779,10 +675,6 @@ ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProce
 
     secure_prng.ReSeed();
     shared_prng.SeedGlobally(*P, false);
-
-    // opening_protocol.setup(*P);
-    // scalar_opening_protocol.setup(*P);
-    // at this point, MC.coordinator != 0
 }
 
 
@@ -791,7 +683,6 @@ ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::~ConsistencyCheck() {
     if(personal_input)
         personal_input.close();
 }
-// TODO: specific implementations...
 template <class CommitmentScheme> 
 void ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::setup(size_t d) {
     int n = P->my_num();
@@ -801,15 +692,10 @@ void ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::setup(size_t d) {
 
     sig_pk_protocol.setup(*P);
     sig_protocol.setup(*P);
-    // opening_protocol.setup(*P);
 
     setup_signing_keys();
     setup_complete = true;
-
-
-
 }
-
 
 template <class CommitmentScheme>
 typename CommitmentScheme::CurvePoint ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::commit_secret(std::vector<Share<gfp_<0, 4>>> &shares) {
@@ -826,7 +712,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<Share<gfp_<0, 4>>, Commit
     std::vector<typename CurvePoint::Scalar> inner_shares(shares.size()), inner_macs(shares.size());
 
     for (unsigned long i = 0; i < shares.size(); i++) {
-        // TODO: can this conversion be faster?
         inner_shares[i] = shares[i].get_share();
         inner_macs[i] = shares[i].get_mac();
     }
@@ -838,20 +723,9 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<Share<gfp_<0, 4>>, Commit
     C_shared.set_share(C_inner_share);
     C_shared.set_mac(C_mac);
 
-
-    /*
-    opening_protocol.init_open(*P);
-    opening_protocol.prepare_open(C_shared);
-    opening_protocol.exchange(*P);
-
-    CurvePoint C = opening_protocol.finalize_open();
-    */
     CurvePoint C = opening_protocol.open(C_shared, *P);
-    // TODO: .Check
     opening_protocol.Check(*P);
 
-    // TODO: enable to check macs
-    // at this point, MC.coordinator == 0 ??
     double duration = t.elapsed();
     t.stop();
     std::cout << "TIMER:commit:"<<duration<<std::endl;
@@ -880,7 +754,7 @@ template <class CommitmentScheme>
 bool ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::check_batch(const std::vector<int> &args, MemoryPart<T> &memory) {
     std::cout << "SPDZ CC.check_batch\n";
 
-    // TODO: each verifier groups together all proofs for which it is a verifier and not prover, and verifies them at once
+    // each verifier groups together all proofs for which it is a verifier and not prover, and verifies them at once
 
     int my_num = P->my_num();
 
@@ -893,7 +767,6 @@ bool ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::check_batch(const st
             clear_inputs.push_back(read_clear_input(personal_input, input_length));
         }
     }
-
     // args: (prover_num, address, length)
 
     bool res = check_commitment<Share<gfp_<0, 4>>, CurveShare, ScalarShare>(
@@ -903,16 +776,12 @@ bool ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::check_batch(const st
         commitment_scheme,
         this
     );
-
-
     return res;
 }
 
 template <class CommitmentScheme>
 void ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys() {
     // randomly sample sk through MPC
-    //
-    //
     
     scalar_input_protocol.reset_all(*P);
     Scalar insecure_sk(3);
@@ -923,7 +792,6 @@ void ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys()
     scalar_input_protocol.exchange();
     
     sig_sk = scalar_input_protocol.finalize(0);
-    // sig_sk = random_protocol.get_random();
 
     // extract sk share values, 
     Scalar sk_share = sig_sk.get_share();
@@ -945,9 +813,6 @@ void ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys()
     pk_shared.set_mac(pk2);
 
     sig_pk = sig_pk_protocol.open(pk_shared, *P);
-    // TODO: .Check
-    // std::cout << "sig_pk_protocol.Check\n";
-    // std::cout << "probing: " << sig_protocol.probe() << std::endl;
     sig_pk_protocol.Check(*P);
 }
 
@@ -982,7 +847,6 @@ P381ElementG2 ConsistencyCheck<Share<gfp_<0, 4>>, CommitmentScheme>::dist_sign(C
     sig_shared.set_mac(sig_mac);
 
     P381ElementG2 signature = sig_protocol.open(sig_shared, *P);
-    // TODO: .Check
     sig_protocol.Check(*P);
 
     std::cout << "\nSignature:\n" << signature << std::endl;
@@ -1007,7 +871,6 @@ ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::Consisten
 
 template <class CommitmentScheme>
 ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProcessor<SpdzWiseRepFieldShare<gfp_<0, 4>>> *sp, Player *player, StackedVector<SpdzWiseRepFieldShare<gfp_<0, 4>>> *processor_S, StackedVector<gfp_<0, 4>> *processor_C, ifstream *processor_commitment_input, typename T::mac_key_type::Scalar alphai)
-// TODO: how to initialize opening protocol??
     : opening_protocol(alphai), scalar_opening_protocol(alphai), sig_pk_protocol(alphai), sig_protocol(alphai), random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     std::cout << "SpdzWiseRepFieldShare CC initializer\n";
     (void) alphai;
@@ -1043,7 +906,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<SpdzWiseRepFieldShare<gfp
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "Setup not performed yet, must be done first!\n";
         return {};
@@ -1082,15 +944,13 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<SpdzWiseRepFieldShare<gfp
 
     MaliciousRep3Share<CurvePoint> committed_share(result_shares), committed_mac(result_shares_mac);
 
-    // CurveShare C_shared = CurveShare(committed_shares); 
-
     CurveShare C_shared = CurveShare();
     C_shared.set_share(committed_share);
     C_shared.set_mac(committed_mac);
 
 
     CurvePoint C = opening_protocol.open(C_shared, *P);
-    // TODO: check for mal. protocols doesnt work yet...
+    // TODO: check for mal. protocols doesnt work yet?
     opening_protocol.Check(*P);
     double duration = t.elapsed();
     t.stop();
@@ -1142,7 +1002,6 @@ bool ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::chec
     return res;
 }
 
-
 template <class CommitmentScheme>
 void ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys() {
     // randomly sample sk through MPC
@@ -1168,7 +1027,6 @@ void ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::setu
     blst_sk_to_pk_in_g1(&pm2, &m2); 
     P381Element pk1(ps1), pk2(ps2), pkm1(pm1), pkm2(pm2);
 
-
     std::array<P381Element, 2> result_shares_mac, result_shares;
     result_shares[0] = pk1;
     result_shares[1] = pk2;
@@ -1181,10 +1039,8 @@ void ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentScheme>::setu
     pk_shared.set_share(pk_share);
     pk_shared.set_mac(pk_mac);
 
-
     sig_pk = sig_pk_protocol.open(pk_shared, *P);
     sig_pk_protocol.Check(*P);
-
 }
 
 template <class CommitmentScheme>
@@ -1200,10 +1056,7 @@ P381ElementG2 ConsistencyCheck<SpdzWiseRepFieldShare<gfp_<0, 4>>, CommitmentSche
     //  enter into blst_sign_pk_in_g1(blst_p2 *out_sig, const blst_p2 *hash, const blst_scalar *SK);
     // reconstruct signature shares, open signature
     // print signature
-    //
-    //
-
-
+    
     MaliciousRep3Share<Scalar> share = sig_sk.get_share();
     MaliciousRep3Share<Scalar> mac = sig_sk.get_mac();
 
@@ -1266,7 +1119,6 @@ ConsistencyCheck<TemiShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck() {
 
 template <class CommitmentScheme>
 ConsistencyCheck<TemiShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProcessor<TemiShare<gfp_<0, 4>>> *sp, Player *player, StackedVector<TemiShare<gfp_<0, 4>>> *processor_S, StackedVector<gfp_<0, 4>> *processor_C, ifstream *processor_commitment_input, typename T::mac_key_type::Scalar alphai)
-// TODO: how to initialize opening protocol??
     : opening_protocol((typename CurvePoint::Scalar)(3)), scalar_opening_protocol((typename CurvePoint::Scalar)(3)), sig_pk_protocol(alphai), sig_protocol(alphai), random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     std::cout << "TemiShare CC initializer\n";
     (void) alphai;
@@ -1298,7 +1150,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<TemiShare<gfp_<0, 4>>, Co
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "Setup not performed yet, must be done first!\n";
         return {};
@@ -1313,14 +1164,11 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<TemiShare<gfp_<0, 4>>, Co
     for (unsigned long i = 0; i < shares.size(); i++) {
         coeffs[i] = shares[i];
     }
-
-
     CurvePoint committed_shares = commitment_scheme.commit(coeffs);
 
     CurveShare C_shared(committed_shares);
 
     CurvePoint C = opening_protocol.open(C_shared, *P);
-    // TODO: check for mal. protocols doesnt work yet...
     opening_protocol.Check(*P);
     double duration = t.elapsed();
     t.stop();
@@ -1367,7 +1215,6 @@ bool ConsistencyCheck<TemiShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(cons
         commitment_scheme,
         this
     );
-
 
     return res;
 
@@ -1447,7 +1294,6 @@ ConsistencyCheck<AtlasShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck() {
 
 template <class CommitmentScheme>
 ConsistencyCheck<AtlasShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProcessor<AtlasShare<gfp_<0, 4>>> *sp, Player *player, StackedVector<AtlasShare<gfp_<0, 4>>> *processor_S, StackedVector<gfp_<0, 4>> *processor_C, ifstream *processor_commitment_input, typename T::mac_key_type::Scalar alphai)
-// TODO: how to initialize opening protocol??
     : opening_protocol((typename CurvePoint::Scalar)(3)), scalar_opening_protocol((typename CurvePoint::Scalar)(3)), sig_pk_protocol(alphai), sig_protocol(alphai), random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     std::cout << "AtlasShare CC initializer\n";
     (void) alphai;
@@ -1479,7 +1325,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<AtlasShare<gfp_<0, 4>>, C
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "Setup not performed yet, must be done first!\n";
         return {};
@@ -1492,15 +1337,11 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<AtlasShare<gfp_<0, 4>>, C
     std::vector<typename CurvePoint::Scalar> coeffs(shares.size());
 
     for (unsigned long i = 0; i < shares.size(); i++) {
-
         coeffs[i] = shares[i];
     }
 
-
     CurvePoint committed_shares = commitment_scheme.commit(coeffs);
-
     CurveShare C_shared(committed_shares);
-
     CurvePoint C = opening_protocol.open(C_shared, *P);
     // TODO: check for mal. protocols doesnt work yet...
     opening_protocol.Check(*P);
@@ -1527,7 +1368,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<AtlasShare<gfp_<0, 4>>, C
 }
 template <class CommitmentScheme>
 bool ConsistencyCheck<AtlasShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(const std::vector<int> &args, MemoryPart<T> &memory) {
-    std::cout << "AtlasShare CC.check_batch\n";
 
     int my_num = P->my_num();
 
@@ -1549,7 +1389,6 @@ bool ConsistencyCheck<AtlasShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(con
         commitment_scheme,
         this
     );
-
 
     return res;
 
@@ -1634,7 +1473,6 @@ ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck() 
 
 template <class CommitmentScheme>
 ConsistencyCheck<MaliciousShamirShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProcessor<MaliciousShamirShare<gfp_<0, 4>>> *sp, Player *player, StackedVector<MaliciousShamirShare<gfp_<0, 4>>> *processor_S, StackedVector<gfp_<0, 4>> *processor_C, ifstream *processor_commitment_input, typename T::mac_key_type::Scalar alphai)
-// TODO: how to initialize opening protocol??
     : opening_protocol(CurvePoint()), scalar_opening_protocol((typename CurvePoint::Scalar)(3)), sig_pk_protocol(alphai), sig_protocol(alphai), random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     std::cout << "MaliciousShamirShare CC initializer\n";
     (void) alphai;
@@ -1667,7 +1505,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<MaliciousShamirShare<gfp_
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "Setup not performed yet, must be done first!\n";
         return {};
@@ -1677,7 +1514,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<MaliciousShamirShare<gfp_
     t.start();
 
     // vectors with "native" curve field (i.e. not MP-SPDZ wrapper)
-    // std::vector<typename CurvePoint::Field> coeffs1(shares.size()), coeffs2(shares.size()), macs1(shares.size()), macs2(shares.size());
     std::vector<typename CurvePoint::Scalar> coeffs(shares.size());
 
     for (unsigned long i = 0; i < shares.size(); i++) {
@@ -1738,13 +1574,9 @@ bool ConsistencyCheck<MaliciousShamirShare<gfp_<0, 4>>, CommitmentScheme>::check
         commitment_scheme,
         this
     );
-
-
     return res;
 
 }
-
-
 
 template <class CommitmentScheme>
 void ConsistencyCheck<MaliciousShamirShare<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys() {
@@ -1804,7 +1636,6 @@ P381ElementG2 ConsistencyCheck<MaliciousShamirShare<gfp_<0, 4>>, CommitmentSchem
 
 template <class CommitmentScheme>
 ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::ConsistencyCheck(SubProcessor<ShamirShare<gfp_<0, 4>>> *sp, Player *player, StackedVector<ShamirShare<gfp_<0, 4>>> *processor_S, StackedVector<gfp_<0, 4>> *processor_C, ifstream *processor_commitment_input, typename T::mac_key_type::Scalar alphai)
-// TODO: how to initialize opening protocol??
     : opening_protocol(CurvePoint()), scalar_opening_protocol((typename CurvePoint::Scalar)(3)), sig_pk_protocol(alphai), sig_protocol(alphai), random_protocol(*player), scalar_input_protocol(*sp), P(player) {
     (void) alphai;
 
@@ -1835,7 +1666,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<ShamirShare<gfp_<0, 4>>, 
     std::cout << "size: " << shares.size() << std::endl;
 
     // check if setup has been performed
-    // TODO: access public params to check whether we have enough for our input?
     if (!setup_complete) {
         std::cout << "Setup not performed yet, must be done first!\n";
         return {};
@@ -1849,7 +1679,6 @@ typename CommitmentScheme::CurvePoint ConsistencyCheck<ShamirShare<gfp_<0, 4>>, 
     for (unsigned long i = 0; i < shares.size(); i++) {
         coeffs[i] = shares[i].get();
     }
-
 
     CurvePoint committed_shares = commitment_scheme.commit(coeffs);
 
@@ -1883,7 +1712,6 @@ template <class CommitmentScheme>
 bool ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(const std::vector<int> &args, MemoryPart<T> &memory) {
     std::cout << "ShamirShare CC.check_batch\n";
 
-
     int my_num = P->my_num();
 
     std::vector<std::vector<gfp_<0, 4>>> clear_inputs;
@@ -1898,7 +1726,6 @@ bool ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(co
 
     // args: (prover_num, address, length)
 
-
     bool res = check_commitment<ShamirShare<gfp_<0, 4>>, CurveShare, ScalarShare>(
         args,
         memory,
@@ -1907,12 +1734,9 @@ bool ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::check_batch(co
         this
     );
 
-
     return res;
 
 }
-
-
 
 template <class CommitmentScheme>
 void ConsistencyCheck<ShamirShare<gfp_<0, 4>>, CommitmentScheme>::setup_signing_keys() {

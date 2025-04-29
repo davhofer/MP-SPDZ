@@ -2117,23 +2117,23 @@ def Norm(b, k, f, simplex_flag=False):
     return part_reciprocal, signed_acc
 
 class ConsistencyCheck:
-    """TODO: docstring.
+    """Utility class for input consistency checks.
 
-    TODO: on init, clear commitment inputs 
-
-    when we call input_tensor_via, pass the commitment, which will be added.
-    when we call check_batch, pass a list of commitments
-
+    Supports commitments to inputs and batch verification of commitments. Commitments are read 
+    from files, e.g. "Player-Data/Input-Commitments-P0".
     """
-    def __init__(self):
+    def __init__(self) -> None:
+        # delete old commitment files on init
         self.data_dir = pathlib.Path("Player-Data")
         for f in self.data_dir.iterdir():
             if f.name.startswith("Input-Commitments-P"):
                 f.unlink()
 
-    # TODO: this is for sint, what about cint?
     def commit(self, x):
-        """Commit to a secret value x."""
+        """Commit to a secret value x.
+
+        Supports sint data type.
+        """
         if isinstance(x, SubMultiArray):
             size = x.total_size()
         else:
@@ -2141,17 +2141,20 @@ class ConsistencyCheck:
         commitsecret(x.address, size)
 
     def check_batch(self, input_parties: list[int], inputs: list[sint.Tensor], commitments: list[str]):
+        """Prepare and execute verification of a batch of commitments and inputs.
+        
+        parties, inputs, and commitments must be passed in order.
+        """
         args = []
-        for i in range(len(inputs)):
+        for i, inp in enumerate(inputs):
             prepare_input_commitment(commitments[i], input_parties[i])
             args.append(input_parties[i])
-            args.append(inputs[i].address)
-            if isinstance(inputs[i], SubMultiArray):
-                args.append(inputs[i].total_size())
+            args.append(inp.address)
+            if isinstance(inp, SubMultiArray):
+                args.append(inp.total_size())
             else:
-                args.append(inputs[i].length)
+                args.append(inp.length)
 
         consistencycheck(*args)
-
 
 

@@ -26,9 +26,6 @@ public:
     typedef fr_t Field;
 
 private:
-    // TODO: OpenSSL stuff
-    // static EC_GROUP* curve;
-
     g1_t point;
 
 public:
@@ -38,14 +35,12 @@ public:
     static const true_type invertible;
 
     static int size() { return 0; }
-    // TODO: check
     static int length() { return 256; }
     static string type_string() { return "P381"; }
 
     static void init(bool init_field = false);
     static void finish();
 
-    // TODO: required methods?
     P381Element();
     P381Element(const P381Element& other);
     P381Element(const Scalar& other);
@@ -58,22 +53,12 @@ public:
     void check();
 
     void set_point(g1_t p);
-    // TODO: how to mark function as const
     g1_t get_point() const;
-
-    /*
-    static void msm(Point *out, std::vector<Point> &bases, std::vector<Field> multipliers, size_t length) {
-        C_KZG_RET ret = g1_lincomb_fast(out, bases.data(), multipliers.data(), length);
-        if (ret) std::cout << "P381Element::msm - C KZG lincomb error, return value " << ret << std::endl;
-        assert(ret == 0);
-    }
-    */
 
     Scalar x() const;
     void randomize(PRNG& G, int n = -1);
     void input(istream& s, bool human);
     static string type_short() { return "ec"; }
-    // TODO: this?
     static DataFieldType field_type() { return DATA_INT; }
 
     P381Element operator+(const P381Element& other) const;
@@ -92,30 +77,18 @@ public:
 
     friend ostream& operator<<(ostream& s, const P381Element& x);
 
-    /*
-    static bigint get_order() {
-        assert(curve != 0);
-        auto modulus = EC_GROUP_get0_order(curve);
-        auto mod = BN_bn2dec(modulus);
-        return mod;
-    }
-    */
-
-
     // Custom functions for compatibility with libff
     static P381Element zero() {
         return P381Element();
     }
     static const int num_limbs = Scalar::N_LIMBS;
     P381Element dbl() {
-        // this should be implemented in openssl?
         return *this + *this;
     }
     P381Element mixed_add(const P381Element &other) {
         return *this + other;
     }
 
-    // End of custom functions
 };
 
 
@@ -134,9 +107,6 @@ public:
     typedef fr_t Field;
 
 private:
-    // TODO: OpenSSL stuff
-    // static EC_GROUP* curve;
-
     g2_t point;
 
 public:
@@ -146,14 +116,12 @@ public:
     static const true_type invertible;
 
     static int size() { return 0; }
-    // TODO: check
     static int length() { return 256; }
     static string type_string() { return "P381G2"; }
 
     static void init(bool init_field = false);
     static void finish();
 
-    // TODO: required methods?
     P381ElementG2();
     P381ElementG2(const P381ElementG2& other);
     P381ElementG2(const Scalar& other);
@@ -166,22 +134,11 @@ public:
     void check();
 
     void set_point(g2_t p);
-    // TODO: how to mark function as const
     g2_t get_point() const;
 
-    /*
-    static void msm(Point *out, std::vector<Point> &bases, std::vector<Field> multipliers, size_t length) {
-        C_KZG_RET ret = g2_lincomb_fast(out, bases.data(), multipliers.data(), length);
-        if (ret) std::cout << "P381ElementG2::msm - C KZG lincomb error, return value " << ret << std::endl;
-        assert(ret == 0);
-    }
-    */
-
-    // Scalar x() const;
     void randomize(PRNG& G, int n = -1);
     void input(istream& s, bool human);
     static string type_short() { return "ec"; }
-    // TODO: this?
     static DataFieldType field_type() { return DATA_INT; }
 
     P381ElementG2 operator+(const P381ElementG2& other) const;
@@ -199,15 +156,6 @@ public:
     void unpack(octetStream& os, int = -1);
 
     friend ostream& operator<<(ostream& s, const P381ElementG2& x);
-
-    /*
-    static bigint get_order() {
-        assert(curve != 0);
-        auto modulus = EC_GROUP_get0_order(curve);
-        auto mod = BN_bn2dec(modulus);
-        return mod;
-    }
-    */
 
 
     // Custom functions for compatibility with libff
@@ -233,4 +181,4 @@ P381ElementG2 operator*(const P381ElementG2::Scalar& x, const P381ElementG2& y);
 
 P381ElementG2 operator*(const int x, const P381ElementG2& y);
 
-#endif /* ECDSA_P381ELEMENT_H_ */
+#endif /* P381ELEMENT_H_ */

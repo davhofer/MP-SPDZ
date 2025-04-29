@@ -936,8 +936,8 @@ bool BaseInstruction::is_direct_memory_access() const
   case STMSB:
   case LDMCB:
   case STMCB:
-  case COMMITSECRET: // TODO: correct?
-  case CONSISTENCYCHECK: // TODO: correct?
+  case COMMITSECRET: 
+  case CONSISTENCYCHECK: 
     return true;
   default:
     return false;
@@ -1439,7 +1439,6 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Procp.protocol.cisc(Procp, *this);
         return;
       case COMMITSECRET:
-        printf("TODO: remove. case COMMITSECRET calling gen_commitment\n");
         Proc.Procp.gen_commitment(r[0], r[1], Proc.machine.Mp.MS);
         return;
       default:

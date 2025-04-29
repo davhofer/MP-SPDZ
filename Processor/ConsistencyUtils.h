@@ -11,7 +11,6 @@
 #include "Protocols/Rep3Share.h"
 #include "Math/gfp.h"
 #include "Processor/Input.h"
-// #include "Tools/octetStream.h"
 
 template<class T>
 T share_new_value(int input_party, typename T::clear value, Input<T> &input_protocol, Player &parties) {
@@ -22,12 +21,10 @@ T share_new_value(int input_party, typename T::clear value, Input<T> &input_prot
         input_protocol.add_other(input_party);
     }
     input_protocol.exchange();
-    //  TODO: check?
     return input_protocol.finalize(input_party);
 }
 
 
-// TODO: rename as convert_value, and use generic argument names "from" and "to"
 void convert_value(blst_fr *to, const gfp_<0, 4> *from);
 
 void convert_value(gfp_<0, 4> *to, const blst_fr *from);
@@ -51,8 +48,6 @@ void g2_mul(g2_t *out, const g2_t *a, const fr_t *b);
 void bytes_from_g2(blst_byte *out, const g2_t *in);
 
 C_KZG_RET bytes_to_kzg_commitment(g2_t *out, const blst_byte *b);
-
-// void print_g2(const g2_t *g);
 
 std::vector<gfp_<0, 4>> read_clear_input(std::ifstream &infile, size_t n);
 
