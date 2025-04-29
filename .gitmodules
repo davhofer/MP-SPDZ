@@ -16,3 +16,6 @@
 [submodule "deps/c-kzg"]
 	path = deps/c-kzg
 	url = https://github.com/ethereum/c-kzg-4844.git
+[submodule "deps/sse2neon"]
+	path = deps/sse2neon
+	url = https://github.com/DLTcollab/sse2neon

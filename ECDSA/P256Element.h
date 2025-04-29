@@ -31,7 +31,7 @@ public:
     static int length() { return 256; }
     static string type_string() { return "P256"; }
 
-    static void init(bool init_field = false);
+    static void init(int nid = NID_X9_62_prime256v1, bool init_field = false);
     static void finish();
 
     P256Element();
@@ -55,13 +55,17 @@ public:
     P256Element operator*(const Scalar& other) const;
 
     P256Element& operator+=(const P256Element& other);
+    P256Element& operator*=(const Scalar& other);
     P256Element& operator/=(const Scalar& other);
+    friend P256Element operator*(const Scalar& x, const P256Element& y);
 
     bool operator==(const P256Element& other) const;
     bool operator!=(const P256Element& other) const;
 
     void pack(octetStream& os, int = -1) const;
     void unpack(octetStream& os, int = -1);
+
+    void output(ostream& s, bool human) const;
 
     friend ostream& operator<<(ostream& s, const P256Element& x);
 
@@ -88,7 +92,9 @@ public:
 
     // End of custom functions
 };
-
-P256Element operator*(const P256Element::Scalar& x, const P256Element& y);
+//template<typename T, typename U,
+//         std::enable_if_t<std::is_same_v<T, P256Element::Scalar> && std::is_same_v<U, P256Element>, int> = 0>
+//P256Element operator*(const T&, const U&);
+//P256Element operator*(const P256Element::Scalar& x, const P256Element& y);
 
 #endif /* ECDSA_P256ELEMENT_H_ */

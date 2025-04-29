@@ -9,6 +9,11 @@ secret index::
     i = sint.get_input_from(0)
     a[i] = sint.get_input_from(1)
 
+`The introductory book by Evans et
+al. <https://securecomputation.org>`_ contains `a chapter dedicated to
+oblivious RAM
+<https://securecomputation.org/docs/ch5-obliviousdata.pdf>`_.
+
 """
 
 import random
@@ -41,6 +46,7 @@ debug_online = False
 crash_on_overflow = False
 use_insecure_randomness = False
 debug_ram_size = False
+single_thread = False
 
 def maybe_start_timer(n):
     if detailed_timing:
@@ -844,7 +850,7 @@ class TrivialORAM(RefTrivialORAM, AbstractORAM):
             start_timer()
 
 def get_n_threads(n_loops):
-    if n_threads is None:
+    if n_threads is None and not single_thread:
         if n_loops > 2048:
             return 8
         else:
@@ -1038,7 +1044,7 @@ class LocalIndexStructure(List):
     __getitem__ = lambda self,index: List.__getitem__(self, index)[0]
 
 def get_n_threads_for_tree(size):
-    if n_threads_for_tree is None:
+    if n_threads_for_tree is None and not single_thread:
         if size >= 2**13:
             return 8
         else:
@@ -1247,8 +1253,6 @@ class TreeORAM(AbstractORAM):
         """ Batch initalization. Obliviously shuffles and adds N entries to
             random leaf buckets. """
         m = len(values)
-        if not (m & (m-1)) == 0:
-            raise CompilerError('Batch size must a power of 2.')
         if m != self.size:
             raise CompilerError('Batch initialization must have N values.')
         if self.value_type != sint:
@@ -1283,17 +1287,22 @@ class TreeORAM(AbstractORAM):
                 self.value_type.hard_conv(False), value_type=self.value_type)
         
         # save unsorted leaves for position map
-        unsorted_leaves = Array.create_from(leaves)
+        unsorted_leaves = leaves
+
+        # add all possible leaves to ensure appearance in B
+        leaves = self.value_type.Array(m + 2 ** self.D)
+        leaves[:] = unsorted_leaves
+        leaves.assign(regint.inc(2 ** self.D), base=m)
         leaves.sort()
 
         bucket_sz = 0
         # B[i] = (pos, leaf, "last in bucket" flag) for i-th entry
-        B = sint.Matrix(m, 3)
+        B = sint.Matrix(len(leaves), 3)
         B[0] = [0, leaves[0], 0]
-        B[-1] = [None, None, sint(1)]
+        B[-1] = [0, 0, sint(1)]
         s = MemValue(sint(0))
 
-        @for_range_opt(m - 1)
+        @for_range_opt(len(B) - 1)
         def _(j):
             i = j + 1
             eq = leaves[i].equal(leaves[i-1])
@@ -1304,6 +1313,8 @@ class TreeORAM(AbstractORAM):
             #pos[i] = [s, leaves[i]]
             #last_in_bucket[i-1] = 1 - eq
 
+        # delete to avoid further usage
+        del leaves
         # shuffle
         B.secure_shuffle()
         #cint(0).print_reg('shuf')
@@ -1313,7 +1324,7 @@ class TreeORAM(AbstractORAM):
         empty_positions = Array(nleaves, self.value_type)
         empty_leaves = Array(nleaves, self.value_type)
         
-        @for_range(m)
+        @for_range(len(B))
         def _(i):
             if_then(reveal(B[i][2]))
             #if B[i][2] == 1:
@@ -1323,7 +1334,8 @@ class TreeORAM(AbstractORAM):
             else:
                 szval = sz.read()
             #szval.print_reg('sz')
-            empty_positions[szval] = B[i][0] #pos[i][0]
+            # subtract one to undo adding above
+            empty_positions[szval] = B[i][0] - 1 #pos[i][0]
             #empty_positions[szval].reveal().print_reg('ps0')
             empty_leaves[szval] = B[i][1] #pos[i][1]
             sz.iadd(1)
@@ -1628,13 +1640,13 @@ class PackedIndexStructure(object):
     def batch_init(self, values):
         """ Initialize m values with indices 0, ..., m-1 """
         m = len(values)
-        n_entries = max(1, m//self.entries_per_block)
+        n_entries = int(math.ceil(m / self.entries_per_block))
         new_values = sint.Matrix(n_entries, self.elements_per_block)
         values = Array.create_from(values)
 
         @for_range(n_entries)
         def _(i):
-            block = [0] * self.elements_per_block
+            block = Array.create_from([sint(0)] * self.elements_per_block)
             for j in range(self.elements_per_block):
                 base = i * self.entries_per_block + j * self.entries_per_element
                 for k in range(self.entries_per_element):
@@ -1784,7 +1796,7 @@ class AtLeastOneRecursionPackedORAMWithEmpty(PackedORAMWithEmpty):
     storage = RecursiveORAM
 
 class OptimalPackedORAMWithEmpty(PackedORAMWithEmpty):
-    storage = OptimalORAM
+    storage = staticmethod(OptimalORAM)
 
 def test_oram(oram_type, N, value_type=sint, iterations=100):
     stop_grind()

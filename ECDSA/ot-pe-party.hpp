@@ -11,6 +11,9 @@
 #include "Protocols/AtlasShare.h"
 #include "Protocols/Rep4Share.h"
 #include "Protocols/ProtocolSet.h"
+#include "Protocols/SPDZ.h"
+#include "Protocols/Hemi.hpp"
+
 #include "Math/gfp.h"
 #include "ECDSA/P256Element.h"
 #include "Tools/Bundle.h"
@@ -103,7 +106,7 @@ void run(int argc, const char** argv) {
         P377Element::finish();
     } else if (opts.curve == "sec256k1") {
 
-        P256Element::init(false);
+        P256Element::init(NID_X9_62_prime256v1, false);
 
         bigint order = P256Element::get_order();
         run<share<P256Element::Scalar>>(argc, argv, order);

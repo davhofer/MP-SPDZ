@@ -7,11 +7,12 @@
 
 #include "Math/gfp.hpp"
 
-EC_GROUP* P256Element::curve;
+EC_GROUP* P256Element::curve = 0;
 
-void P256Element::init(bool init_field)
+void P256Element::init(int nid, bool init_field)
 {
-    curve = EC_GROUP_new_by_curve_name(NID_secp256k1);
+    assert(not curve);
+    curve = EC_GROUP_new_by_curve_name(nid);
     assert(curve != 0);
     if (init_field) {
         auto modulus = EC_GROUP_get0_order(curve);
@@ -142,6 +143,12 @@ ostream& operator <<(ostream& s, const P256Element& x)
     return s;
 }
 
+void P256Element::output(ostream& s, bool human) const
+{
+    assert(human);
+    s << *this;
+}
+
 P256Element::P256Element(const P256Element& other) :
         P256Element()
 {
@@ -156,6 +163,12 @@ P256Element operator*(const P256Element::Scalar& x, const P256Element& y)
 P256Element& P256Element::operator +=(const P256Element& other)
 {
     *this = *this + other;
+    return *this;
+}
+
+P256Element& P256Element::operator *=(const Scalar& other)
+{
+    *this = *this * other;
     return *this;
 }
 

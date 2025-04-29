@@ -10,6 +10,8 @@
 #include "Protocols/SemiShare.h"
 #include "Processor/BaseMachine.h"
 #include "Protocols/ProtocolSet.h"
+#include "Protocols/SPDZ.h"
+#include "Protocols/Hemi.hpp"
 
 #include "ECDSA/preprocessing.hpp"
 #include "ECDSA/sign.hpp"
@@ -254,7 +256,7 @@ void run(int argc, const char** argv, bigint order)
 
 //    string message = "Hello";
     // Now onto signing
-    P256Element::init();
+    P256Element::init(NID_X9_62_prime256v1, false);
     P256Element::Scalar::next::init_field(P256Element::Scalar::pr(), false);
 
     P256Element::Scalar keyp;
@@ -353,7 +355,7 @@ void run(int argc, const char** argv) {
     PCOptions opts(opt, argc, argv);
 
     if (opts.curve == "bls12377") {
-        P256Element::init(true);
+        P256Element::init(NID_X9_62_prime256v1, true);
 
         libff::bls12_377_pp::init_public_params();
         mpz_t t;
